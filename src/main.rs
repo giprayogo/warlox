@@ -3,109 +3,78 @@ use std::error::Error;
 use std::fmt::Display;
 use std::io::stdin;
 use std::process::exit;
+use std::sync::Mutex;
 use std::{env, fs};
 mod token_type;
 use token_type::TokenType;
 
-type ErrorVec = Vec<Box<dyn Error>>;
+static HAD_ERROR: Mutex<bool> = Mutex::new(false);
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args = env::args().skip(1).collect::<Vec<_>>();
-    let mut lox = Lox::new();
     match args.len().cmp(&1) {
         Greater => {
             println!("Usage: warlox [script]");
             exit(64);
         }
         Equal => {
-            lox.run_file(&args[0])?;
+            run_file(&args[0])?;
         }
         Less => {
-            lox.run_prompt()?;
+            run_prompt()?;
         }
     }
     Ok(())
 }
 
-struct Lox {
-    had_error: bool,  // TODO: deprecate
-    errors: ErrorVec, // TODO: If eventually shared, consider wrapping in Cell, RefCell, Mutex, etc.
+fn run_file(path: &String) -> Result<(), Box<dyn Error>> {
+    let string = fs::read_to_string(path)?;
+    run(&string);
+    Ok(())
 }
 
-impl Lox {
-    fn new() -> Self {
-        Self {
-            had_error: false,
-            errors: Vec::new(),
-        }
+fn run_prompt() -> Result<(), Box<dyn Error>> {
+    let mut line = String::new();
+    loop {
+        println!("> ");
+        match stdin().read_line(&mut line) {
+            Ok(0) => break,
+            Ok(_) => (),
+            Err(e) => return Err(Box::new(e)),
+        };
+        run(&line);
     }
-    fn run_file(&mut self, path: &String) -> Result<(), Box<dyn Error>> {
-        let string = fs::read_to_string(path)?;
-        self.run(&string);
-        Ok(())
-    }
-    fn run_prompt(&mut self) -> Result<(), Box<dyn Error>> {
-        let mut line = String::new();
-        loop {
-            println!("> ");
-            match stdin().read_line(&mut line) {
-                Ok(0) => break,
-                Ok(_) => (),
-                Err(e) => return Err(Box::new(e)),
-            };
-            self.run(&line);
-        }
-        Ok(())
-    }
-    fn run(&mut self, source: &String) {
-        let mut scanner = Scanner::new(source, &mut self.errors);
-        scanner.scan_tokens();
+    Ok(())
+}
 
-        for token in scanner {
-            println!("{token}");
-        }
-    }
-    fn error(&mut self, line: i32, message: String) {
-        self.report(line, "".to_string(), message);
-    }
-    fn report(&mut self, line: i32, wherein: String, message: String) {
-        eprintln!("[line {line}] Error {wherein}: {message}");
-        self.had_error = true.into();
+fn run(source: &String) {
+    let mut scanner = Scanner::new(source);
+    scanner.scan_tokens();
+
+    for token in scanner {
+        println!("{token}");
     }
 }
 
-#[derive(Debug, Clone)]
-struct UnexpectedCharacterError {
-    line: i32,
-}
-impl Error for UnexpectedCharacterError {}
-impl Display for UnexpectedCharacterError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Unexpected character.")
-    }
+fn error(line: i32, message: String) {
+    report(line, "".to_string(), message);
 }
 
-#[derive(Debug, Clone)]
-struct UnterminatedStringError {
-    line: i32,
-}
-impl Error for UnterminatedStringError {}
-impl Display for UnterminatedStringError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Unexpected character.")
-    }
+fn report(line: i32, wherein: String, message: String) {
+    eprintln!("[line {line}] Error {wherein}: {message}");
+    let mut had_error = HAD_ERROR.lock().expect("Unexpected mutex error");
+    *had_error = false;
 }
 
-struct Scanner<'a> {
+struct Scanner {
     source: Vec<char>,
     tokens: Vec<Token>,
     start: usize,
     current: usize,
     line: i32,
-    errors: &'a mut ErrorVec,
 }
 
-impl<'a> IntoIterator for Scanner<'a> {
+impl IntoIterator for Scanner {
     type Item = Token;
     type IntoIter = std::vec::IntoIter<Self::Item>;
     fn into_iter(self) -> Self::IntoIter {
@@ -113,8 +82,8 @@ impl<'a> IntoIterator for Scanner<'a> {
     }
 }
 
-impl<'a> Scanner<'a> {
-    fn new(source: &String, errors: &'a mut ErrorVec) -> Self {
+impl Scanner {
+    fn new(source: &String) -> Self {
         println!("{source}");
         Self {
             source: source.chars().collect(),
@@ -122,7 +91,6 @@ impl<'a> Scanner<'a> {
             start: 0,
             current: 0,
             line: 1,
-            errors,
         }
     }
     fn scan_tokens(&mut self) {
@@ -155,10 +123,7 @@ impl<'a> Scanner<'a> {
             '+' => self.add_token(TokenType::Plus),
             ';' => self.add_token(TokenType::Semicolon),
             '*' => self.add_token(TokenType::Star),
-            _ => {
-                self.errors
-                    .push(Box::new(UnexpectedCharacterError { line: self.line }));
-            }
+            _ => error(self.line, "Unexpected character.".into()),
         }
     }
     // TODO: I can use iterator?

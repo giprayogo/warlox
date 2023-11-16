@@ -1,5 +1,4 @@
-use std::fmt::Display;
-
+#[derive(Debug)]
 pub enum TokenType {
     // Single-character tokens.
     LeftParen,
@@ -44,10 +43,4 @@ pub enum TokenType {
     Var,
     While,
     EoF,
-}
-
-impl Display for TokenType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "TokenType (TODO: implement)")
-    }
 }

@@ -1,13 +1,15 @@
 use std::cmp::Ordering::{Equal, Greater, Less};
 use std::error::Error;
 use std::fmt::Display;
-use std::io::stdin;
+use std::io::stdout;
+use std::io::{stdin, Write};
 use std::process::exit;
 use std::sync::Mutex;
 use std::{env, fs};
 mod token_type;
 use token_type::TokenType;
 
+// TODO: Perhaps error should be its own module
 static HAD_ERROR: Mutex<bool> = Mutex::new(false);
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -36,13 +38,15 @@ fn run_file(path: &String) -> Result<(), Box<dyn Error>> {
 fn run_prompt() -> Result<(), Box<dyn Error>> {
     let mut line = String::new();
     loop {
-        println!("> ");
+        print!("> ");
+        stdout().flush()?;
         match stdin().read_line(&mut line) {
             Ok(0) => break,
             Ok(_) => (),
             Err(e) => return Err(Box::new(e)),
         };
         run(&line);
+        line.clear();
     }
     Ok(())
 }
@@ -50,7 +54,6 @@ fn run_prompt() -> Result<(), Box<dyn Error>> {
 fn run(source: &String) {
     let mut scanner = Scanner::new(source);
     scanner.scan_tokens();
-
     for token in scanner {
         println!("{token}");
     }
@@ -83,8 +86,7 @@ impl IntoIterator for Scanner {
 }
 
 impl Scanner {
-    fn new(source: &String) -> Self {
-        println!("{source}");
+    fn new(source: &str) -> Self {
         Self {
             source: source.chars().collect(),
             tokens: Vec::new(),
@@ -93,6 +95,7 @@ impl Scanner {
             line: 1,
         }
     }
+
     fn scan_tokens(&mut self) {
         while !Scanner::is_at_end(self) {
             self.start = self.current;
@@ -104,12 +107,12 @@ impl Scanner {
             literal: None,
             line: self.line,
         });
-
-        // vec![Token::new(TokenType::EoF, "".to_string(), None, 0)]
     }
+
     fn is_at_end(&self) -> bool {
         self.current >= self.source.len() // TODO: probably not efficient
     }
+
     fn scan_token(&mut self) {
         let c = self.advance();
         match c {
@@ -123,26 +126,87 @@ impl Scanner {
             '+' => self.add_token(TokenType::Plus),
             ';' => self.add_token(TokenType::Semicolon),
             '*' => self.add_token(TokenType::Star),
+            '!' => {
+                if self.match_char('=') {
+                    self.add_token(TokenType::BangEqual);
+                } else {
+                    self.add_token(TokenType::Bang);
+                }
+            }
+            '=' => {
+                if self.match_char('=') {
+                    self.add_token(TokenType::EqualEqual);
+                } else {
+                    self.add_token(TokenType::Equal);
+                };
+            }
+            '<' => {
+                if self.match_char('=') {
+                    self.add_token(TokenType::LessEqual);
+                } else {
+                    self.add_token(TokenType::Less);
+                };
+            }
+            '>' => {
+                if self.match_char('=') {
+                    self.add_token(TokenType::GreaterEqual);
+                } else {
+                    self.add_token(TokenType::Greater);
+                };
+            }
+            '/' => {
+                if self.match_char('/') {
+                    // TODO: Use builtin
+                    while self.peek() != '\n' && !self.is_at_end() {
+                        self.advance();
+                    }
+                } else {
+                    self.add_token(TokenType::Slash);
+                }
+            }
+            // TODO: instead match general whitespace characters
+            ' ' | '\r' | '\t' => {}
+            '\n' => self.line += 1,
             _ => error(self.line, "Unexpected character.".into()),
         }
     }
-    // TODO: I can use iterator?
+
     fn advance(&mut self) -> char {
-        // TODO: Not safe, find alternative
         let char = self.source[self.current];
         self.current += 1;
         char
     }
+
     fn add_token(&mut self, token_type: TokenType) {
         let lexeme = self.source[self.start..self.current]
             .iter()
-            .collect::<String>(); // TODO: check
+            .collect::<String>();
         self.tokens.push(Token {
             token_type,
             lexeme,
             literal: None,
             line: self.line,
         })
+    }
+
+    fn match_char(&mut self, expected: char) -> bool {
+        if self.is_at_end() {
+            return false;
+        }
+        if self.source[self.current] != expected {
+            return false;
+        }
+        self.current += 1;
+        true
+    }
+
+    fn peek(&self) -> char {
+        // TODO: Use builtin
+        if self.is_at_end() {
+            '\0'
+        } else {
+            self.source[self.current]
+        }
     }
 }
 
@@ -155,8 +219,16 @@ struct Token {
 
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // TODO: Fix printing of literal
-        write!(f, "{} {} {:?}", self.token_type, self.lexeme, self.literal)
+        write!(
+            f,
+            "{:?} {} {:}",
+            self.token_type,
+            self.lexeme,
+            match &self.literal {
+                Some(v) => format!("{}", v),
+                None => "".into(),
+            }
+        )
     }
 }
 

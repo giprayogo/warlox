@@ -1,5 +1,6 @@
 use std::cmp::Ordering::{Equal, Greater, Less};
 use std::error::Error;
+use std::fmt::Display;
 use std::io::stdout;
 use std::io::{stdin, Write};
 use std::process::exit;
@@ -58,7 +59,7 @@ fn run(source: &str) {
     let mut scanner = Scanner::new(source);
     scanner.scan_tokens();
     for token in scanner {
-        println!("{token:?}");
+        println!("{token}");
     }
 }
 
@@ -182,12 +183,15 @@ impl Scanner {
             '\n' => self.line += 1,
             '"' => self.string(),
             c if c.is_ascii_digit() => self.number(),
+            // TODO: Later support full unicode as identifier??
+            c if c.is_ascii_alphanumeric() => self.identifier(),
             _ => error(self.line, "Unexpected character.".into()),
         }
     }
 
     /// Advance character iterator returning a string. TODO: Actually make into an iterator
     fn advance(&mut self) -> char {
+        // TODO: causes panic with unterminated string literal
         let char = self.source[self.current];
         self.current += 1;
         char
@@ -232,8 +236,6 @@ impl Scanner {
     fn string(&mut self) {
         // TODO: I should be able to consume and move at the same time with iterator?
         while self.peek() != '"' && !self.is_at_end() {
-            // TODO: match general newline character
-            // TODO: can cause problem in the interpreter terminal
             if self.peek() == '\n' {
                 self.line += 1
             }
@@ -292,6 +294,22 @@ impl Scanner {
             self.source[self.current + 1]
         }
     }
+
+    /// Consume a string of characters producing identifier or reserver keywords
+    fn identifier(&mut self) {
+        // TODO: consider supporting full unicode
+        while self.peek().is_ascii_alphanumeric() {
+            self.advance();
+        }
+
+        // TODO: This pattern appear several time; fx-ize?
+        let text: String = self.source[self.start..self.current].iter().collect();
+        let token_type = match TokenType::from_str(&text) {
+            Ok(v) => v,
+            Err(_) => TokenType::Identifier,
+        };
+        self.add_token(token_type);
+    }
 }
 
 /// Struct for the Lox tokens. TODO: given Rust's enum it should be possible to join them
@@ -314,7 +332,24 @@ impl Token {
     }
 }
 
-/// Struct with container for the literal token's. TODO: Utilize Rust's enum fully for these.
+impl Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{:?}{}, ln {} \"{}\"",
+            self.token_type,
+            match &self.literal {
+                Some(v) => format!(" {v:?}"),
+                None => "".into(),
+            },
+            self.line,
+            self.lexeme,
+        )
+    }
+}
+
+/// Struct with container for the literal token's.
+// TODO: Utilize Rust's enum fully for these. i.e. can be joined with TokenType
 #[derive(Debug)]
 enum Literals {
     String(String),

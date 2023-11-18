@@ -29,12 +29,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn run_file(path: &String) -> Result<(), Box<dyn Error>> {
+/// Load and interpret a Lox source code file
+fn run_file(path: &str) -> Result<(), Box<dyn Error>> {
     let string = fs::read_to_string(path)?;
     run(&string);
     Ok(())
 }
 
+/// Run interactive prompt for the Lox interpreter
 fn run_prompt() -> Result<(), Box<dyn Error>> {
     let mut line = String::new();
     loop {
@@ -51,7 +53,8 @@ fn run_prompt() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn run(source: &String) {
+/// Token scanner loop for a single file or line (interactive)
+fn run(source: &str) {
     let mut scanner = Scanner::new(source);
     scanner.scan_tokens();
     for token in scanner {
@@ -59,16 +62,20 @@ fn run(source: &String) {
     }
 }
 
+/// Rudimentary error reporting mechanism
 fn error(line: i32, message: String) {
     report(line, "".to_string(), message);
 }
 
+/// Rudimentary error reporting mechanism (actual printing part)
 fn report(line: i32, wherein: String, message: String) {
     eprintln!("[line {line}] Error {wherein}: {message}");
     let mut had_error = HAD_ERROR.lock().expect("Unexpected mutex error");
     *had_error = false;
 }
 
+/// Struct for the source and current state of the scanner
+/// TODO: I really want to use just standard iterator for this. perhaps later.
 struct Scanner {
     source: Vec<char>,
     tokens: Vec<Token>,
@@ -77,6 +84,7 @@ struct Scanner {
     line: i32,
 }
 
+/// TODO: Eventually more extensive
 impl IntoIterator for Scanner {
     type Item = Token;
     type IntoIter = std::vec::IntoIter<Self::Item>;
@@ -86,6 +94,7 @@ impl IntoIterator for Scanner {
 }
 
 impl Scanner {
+    /// Constructor
     fn new(source: &str) -> Self {
         Self {
             source: source.chars().collect(),
@@ -96,6 +105,8 @@ impl Scanner {
         }
     }
 
+    /// Read whole file or line (interactive) into list of tokens
+    /// TODO: I don't want to unnecessarily eat memory?
     fn scan_tokens(&mut self) {
         while !Scanner::is_at_end(self) {
             self.start = self.current;
@@ -109,10 +120,12 @@ impl Scanner {
         });
     }
 
+    /// If we are at the end of token. TODO: Should use standard safe structure?
     fn is_at_end(&self) -> bool {
-        self.current >= self.source.len() // TODO: probably not efficient
+        self.current >= self.source.len()
     }
 
+    /// Consume one or more characters to output a single token. TODO: Iterator interface
     fn scan_token(&mut self) {
         let c = self.advance();
         match c {
@@ -171,24 +184,23 @@ impl Scanner {
         }
     }
 
+    /// Advance character iterator returning a string. TODO: Actually make into an iterator
     fn advance(&mut self) -> char {
         let char = self.source[self.current];
         self.current += 1;
         char
     }
 
+    /// Push a single token into the internal collection. TODO: I would like a dedicated collection type for tokens which take care of this?
     fn add_token(&mut self, token_type: TokenType) {
         let lexeme = self.source[self.start..self.current]
             .iter()
             .collect::<String>();
-        self.tokens.push(Token {
-            token_type,
-            lexeme,
-            literal: None,
-            line: self.line,
-        })
+        self.tokens
+            .push(Token::new(token_type, lexeme, None, self.line))
     }
 
+    /// Test whether the next character matches given one, conditionally advancing the iterator if so.
     fn match_char(&mut self, expected: char) -> bool {
         if self.is_at_end() {
             return false;
@@ -200,6 +212,7 @@ impl Scanner {
         true
     }
 
+    /// Peek the next character without advancing the iterator. TODO: There's a standard Rust facility for this
     fn peek(&self) -> char {
         // TODO: Use builtin
         if self.is_at_end() {
@@ -210,6 +223,7 @@ impl Scanner {
     }
 }
 
+/// Struct for the Lox tokens. TODO: given Rust's enum it should be possible to join them
 struct Token {
     token_type: TokenType,
     lexeme: String,
@@ -243,6 +257,7 @@ impl Token {
     }
 }
 
+/// Struct with container for the literal token's. TODO: Utilize Rust's enum fully for these.
 #[derive(Debug)]
 enum Literals {
     String(String),

@@ -184,7 +184,7 @@ impl Scanner {
             '"' => self.string(),
             c if c.is_ascii_digit() => self.number(),
             // TODO: Later support full unicode as identifier??
-            c if c.is_ascii_alphanumeric() => self.identifier(),
+            c if c.is_ascii_alphanumeric() || c == '_' => self.identifier(),
             _ => error(self.line, "Unexpected character.".into()),
         }
     }

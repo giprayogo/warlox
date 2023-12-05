@@ -8,12 +8,33 @@ use std::{env, fs};
 mod expr;
 mod scanner;
 mod token;
+use expr::Expr;
 use scanner::Scanner;
+use token::{LoxLiteral, Token, TokenType};
+
+use crate::expr::AstPrinter;
 
 // TODO: Perhaps error should be its own module
 static HAD_ERROR: Mutex<bool> = Mutex::new(false);
 
 fn main() -> Result<(), Box<dyn Error>> {
+    // Test expression printer
+    let expression = Expr::Binary {
+        left: Box::new(Expr::Unary {
+            operator: Token::new(TokenType::Minus, "-".to_string(), None, 1),
+            right: Box::new(Expr::Literal {
+                value: LoxLiteral::Double(123.0),
+            }),
+        }),
+        operator: Token::new(TokenType::Star, "*".to_string(), None, 1),
+        right: Box::new(Expr::Grouping {
+            expression: Box::new(Expr::Literal {
+                value: LoxLiteral::Double(45.67),
+            }),
+        }),
+    };
+    println!("{}", AstPrinter.print(&expression));
+
     let args = env::args().skip(1).collect::<Vec<_>>();
     match args.len().cmp(&1) {
         Greater => {

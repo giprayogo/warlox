@@ -1,5 +1,5 @@
 use crate::error;
-use crate::token::{Literals, Token, TokenType};
+use crate::token::{LoxLiteral, Token, TokenType};
 use std::str::FromStr;
 
 /// Struct for the source and current state of the scanner
@@ -126,7 +126,7 @@ impl Scanner {
     }
 
     /// Push a token with literal value
-    fn add_token_literal(&mut self, token_type: TokenType, literal_value: Option<Literals>) {
+    fn add_token_literal(&mut self, token_type: TokenType, literal_value: Option<LoxLiteral>) {
         // TODO: I think better integration with iterator type is possible
         let lexeme: String = self.source[self.start..self.current].iter().collect();
         self.tokens
@@ -174,7 +174,7 @@ impl Scanner {
             .iter()
             .collect();
         // TODO: I don't think I need these encapsulations
-        self.add_token_literal(TokenType::String, Some(Literals::String(value)))
+        self.add_token_literal(TokenType::String, Some(LoxLiteral::String(value)))
     }
 
     /// Consume a string of characters producing a number literal token
@@ -198,7 +198,7 @@ impl Scanner {
         self.add_token_literal(
             TokenType::Number,
             // TODO: Ugly
-            Some(Literals::Double(
+            Some(LoxLiteral::Double(
                 f64::from_str(
                     &(self.source[self.start..self.current]
                         .iter()

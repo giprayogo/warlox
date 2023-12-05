@@ -1,16 +1,21 @@
 use std::fmt::Display;
 
 /// Struct for the Lox tokens. TODO: given Rust's enum it should be possible to join them
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Token {
     token_type: TokenType,
-    lexeme: String,
-    literal: Option<Literals>,
+    pub lexeme: String,
+    literal: Option<LoxLiteral>,
     line: i32,
 }
 
 impl Token {
-    pub fn new(token_type: TokenType, lexeme: String, literal: Option<Literals>, line: i32) -> Self {
+    pub fn new(
+        token_type: TokenType,
+        lexeme: String,
+        literal: Option<LoxLiteral>,
+        line: i32,
+    ) -> Self {
         Self {
             token_type,
             lexeme,
@@ -36,17 +41,25 @@ impl Display for Token {
     }
 }
 
-/// Struct with container for the literal token's.
-// TODO: Utilize Rust's enum fully for these. i.e. can be joined with TokenType
-#[derive(Debug)]
-pub enum Literals {
+/// Acceptable literal types in Lox. TODO: Both should be separate token type??
+#[derive(Debug, Clone)]
+pub enum LoxLiteral {
     String(String),
     Double(f64),
 }
 
+impl Display for LoxLiteral {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LoxLiteral::Double(v) => write!(f, "{v}"),
+            LoxLiteral::String(v) => write!(f, "{v}"),
+        }
+    }
+}
+
 use std::str::FromStr;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TokenType {
     // Single-character tokens.
     LeftParen,

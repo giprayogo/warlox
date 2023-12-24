@@ -9,12 +9,10 @@ mod expr;
 mod parser;
 mod scanner;
 mod token;
-use expr::Expr;
+use expr::{AstPrinter, Expr};
 use parser::Parser;
 use scanner::Scanner;
 use token::{LoxLiteral, Token, TokenType};
-
-use crate::expr::AstPrinter;
 
 // TODO: Perhaps error should be its own module
 static HAD_ERROR: Mutex<bool> = Mutex::new(false);
@@ -90,7 +88,7 @@ fn run(source: &str) {
         }
     };
 
-    AstPrinter.print(&expression);
+    println!("{}", AstPrinter.print(&expression));
 }
 
 /// Rudimentary error reporting mechanism

@@ -1,5 +1,6 @@
 use crate::error;
 use crate::token::{LoxLiteral, Token, TokenType};
+use std::mem;
 use std::str::FromStr;
 
 /// Struct for the source and current state of the scanner
@@ -35,18 +36,15 @@ impl Scanner {
 
     /// Read whole file or line (interactive) into list of tokens
     /// TODO: I don't want to unnecessarily eat memory?
-    pub fn scan_tokens(&mut self) {
+    pub fn scan_tokens(&mut self) -> Vec<Token> {
         while !Scanner::is_at_end(self) {
             self.start = self.current;
             self.scan_token()
         }
         self.tokens
             .push(Token::new(TokenType::EoF, "".to_string(), None, self.line));
-    }
-
-    /// If we are at the end of token. TODO: Should use standard safe structure?
-    fn is_at_end(&self) -> bool {
-        self.current >= self.source.len()
+        // TODO: Ugly
+        mem::take(&mut self.tokens)
     }
 
     /// Consume one or more characters to output a single token. TODO: Iterator interface
@@ -112,49 +110,6 @@ impl Scanner {
         }
     }
 
-    /// Advance character iterator returning a string. TODO: Actually make into an iterator
-    fn advance(&mut self) -> char {
-        // TODO: causes panic with unterminated string literal
-        let char = self.source[self.current];
-        self.current += 1;
-        char
-    }
-
-    /// Push a single token into the internal collection. TODO: I would like a dedicated collection type for tokens which take care of this?
-    fn add_token(&mut self, token_type: TokenType) {
-        self.add_token_literal(token_type, None)
-    }
-
-    /// Push a token with literal value
-    fn add_token_literal(&mut self, token_type: TokenType, literal_value: Option<LoxLiteral>) {
-        // TODO: I think better integration with iterator type is possible
-        let lexeme: String = self.source[self.start..self.current].iter().collect();
-        self.tokens
-            .push(Token::new(token_type, lexeme, literal_value, self.line))
-    }
-
-    /// Test whether the next character matches given one, conditionally advancing the iterator if so.
-    fn match_char(&mut self, expected: char) -> bool {
-        if self.is_at_end() {
-            return false;
-        }
-        if self.source[self.current] != expected {
-            return false;
-        }
-        self.current += 1;
-        true
-    }
-
-    /// Peek the next character without advancing the iterator. TODO: There's a standard Rust facility for this
-    fn peek(&self) -> char {
-        // TODO: Use builtin
-        if self.is_at_end() {
-            '\0'
-        } else {
-            self.source[self.current]
-        }
-    }
-
     /// Consume a string of characters producing a string literal token
     fn string(&mut self) {
         // TODO: I should be able to consume and move at the same time with iterator?
@@ -209,15 +164,6 @@ impl Scanner {
         )
     }
 
-    /// Two characters lookahead
-    fn peek_next(&self) -> char {
-        if self.current + 1 >= self.source.len() {
-            '\0'
-        } else {
-            self.source[self.current + 1]
-        }
-    }
-
     /// Consume a string of characters producing identifier or reserver keywords
     fn identifier(&mut self) {
         // TODO: consider supporting full unicode
@@ -232,5 +178,62 @@ impl Scanner {
             Err(_) => TokenType::Identifier,
         };
         self.add_token(token_type);
+    }
+
+    /// Push a single token into the internal collection. TODO: I would like a dedicated collection type for tokens which take care of this?
+    fn add_token(&mut self, token_type: TokenType) {
+        self.add_token_literal(token_type, None)
+    }
+
+    /// Push a token with literal value
+    fn add_token_literal(&mut self, token_type: TokenType, literal_value: Option<LoxLiteral>) {
+        // TODO: I think better integration with iterator type is possible
+        let lexeme: String = self.source[self.start..self.current].iter().collect();
+        self.tokens
+            .push(Token::new(token_type, lexeme, literal_value, self.line))
+    }
+
+    /// Test whether the next character matches given one, conditionally advancing the iterator if so.
+    fn match_char(&mut self, expected: char) -> bool {
+        if self.is_at_end() {
+            return false;
+        }
+        if self.source[self.current] != expected {
+            return false;
+        }
+        self.current += 1;
+        true
+    }
+
+    /// Advance character iterator returning a string. TODO: Actually make into an iterator
+    fn advance(&mut self) -> char {
+        // TODO: causes panic with unterminated string literal
+        let char = self.source[self.current];
+        self.current += 1;
+        char
+    }
+
+    /// If we are at the end of token. TODO: Should use standard safe structure?
+    fn is_at_end(&self) -> bool {
+        self.current >= self.source.len()
+    }
+
+    /// Peek the next character without advancing the iterator. TODO: There's a standard Rust facility for this
+    fn peek(&self) -> char {
+        // TODO: Use builtin
+        if self.is_at_end() {
+            '\0'
+        } else {
+            self.source[self.current]
+        }
+    }
+
+    /// Two characters lookahead
+    fn peek_next(&self) -> char {
+        if self.current + 1 >= self.source.len() {
+            '\0'
+        } else {
+            self.source[self.current + 1]
+        }
     }
 }

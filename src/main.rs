@@ -6,9 +6,11 @@ use std::process::exit;
 use std::sync::Mutex;
 use std::{env, fs};
 mod expr;
+mod parser;
 mod scanner;
 mod token;
 use expr::Expr;
+use parser::Parser;
 use scanner::Scanner;
 use token::{LoxLiteral, Token, TokenType};
 
@@ -23,13 +25,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         left: Box::new(Expr::Unary {
             operator: Token::new(TokenType::Minus, "-".to_string(), None, 1),
             right: Box::new(Expr::Literal {
-                value: LoxLiteral::Double(123.0),
+                value: Some(LoxLiteral::Double(123.0)),
             }),
         }),
         operator: Token::new(TokenType::Star, "*".to_string(), None, 1),
         right: Box::new(Expr::Grouping {
             expression: Box::new(Expr::Literal {
-                value: LoxLiteral::Double(45.67),
+                value: Some(LoxLiteral::Double(45.67)),
             }),
         }),
     };
@@ -78,10 +80,17 @@ fn run_prompt() -> Result<(), Box<dyn Error>> {
 /// Token scanner loop for a single file or line (interactive)
 fn run(source: &str) {
     let mut scanner = Scanner::new(source);
-    scanner.scan_tokens();
-    for token in scanner {
-        println!("{token}");
-    }
+    let tokens = scanner.scan_tokens();
+    let mut parser = Parser::new(tokens);
+    let expression = match parser.parse() {
+        Ok(v) => v,
+        Err(e) => {
+            println!("{e}");
+            return;
+        }
+    };
+
+    AstPrinter.print(&expression);
 }
 
 /// Rudimentary error reporting mechanism

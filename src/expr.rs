@@ -28,7 +28,7 @@ pub enum Expr {
         expression: Box<Expr>,
     },
     Literal {
-        value: LoxLiteral,
+        value: Option<LoxLiteral>,
     },
     Unary {
         operator: Token,
@@ -64,6 +64,8 @@ impl AstPrinter {
 impl ExprVisitor for AstPrinter {
     type Output = String;
 
+    // # NOTE: At the end of the day not so much of a visitor?? ¯\_(ツ)_/¯
+    // Perhaps will be revisited (got it?) when I added statements
     fn visit(&self, expr: &Expr) -> String {
         match expr {
             Expr::Binary {
@@ -72,10 +74,10 @@ impl ExprVisitor for AstPrinter {
                 right,
             } => self.parenthesize(&operator.lexeme, &[left, right]),
             Expr::Grouping { expression } => self.parenthesize("group", &[expression]),
-            Expr::Literal { value } => {
-                // TODO: Is it nullable in the original java implementation?
-                format!("{value}")
-            }
+            Expr::Literal { value } => match value {
+                Some(v) => format!("{v}"),
+                None => "".to_string(),
+            },
             Expr::Unary { operator, right } => self.parenthesize(&operator.lexeme, &[right]),
         }
     }

@@ -1,12 +1,14 @@
 use std::fmt::Display;
 
-/// Struct for the Lox tokens. TODO: given Rust's enum it should be possible to join them
+/// Struct for the Lox tokens.
+// TODO: given Rust's enum it should be possible to join them
+// TODO: I don't like having all field as public...
 #[derive(Debug, Clone)]
 pub struct Token {
-    token_type: TokenType,
+    pub token_type: TokenType,
     pub lexeme: String,
-    literal: Option<LoxLiteral>,
-    line: i32,
+    pub literal: Option<LoxLiteral>,
+    pub line: i32,
 }
 
 impl Token {
@@ -46,20 +48,24 @@ impl Display for Token {
 pub enum LoxLiteral {
     String(String),
     Double(f64),
+    Boolean(bool),
 }
 
+// TODO: Can be joined with normal Token
 impl Display for LoxLiteral {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use LoxLiteral::*;
         match self {
-            LoxLiteral::Double(v) => write!(f, "{v}"),
-            LoxLiteral::String(v) => write!(f, "{v}"),
+            Double(v) => write!(f, "{v}"),
+            String(v) => write!(f, "{v}"),
+            Boolean(v) => write!(f, "{v}"),
         }
     }
 }
 
 use std::str::FromStr;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {
     // Single-character tokens.
     LeftParen,

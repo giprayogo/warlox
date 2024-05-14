@@ -1,13 +1,18 @@
 use std::fmt::Display;
 
 /// Struct for the Lox tokens.
-// TODO: given Rust's enum it should be possible to join them
-// TODO: I don't like having all field as public...
+// TODO: I don't like having all fields public...
 #[derive(Debug, Clone)]
 pub struct Token {
+    // TODO: Maybe better as a trait.
+    /// Type of current token.
     pub token_type: TokenType,
+    /// Source string of the current token.
     pub lexeme: String,
+    // TODO: Part of type? Why is this even here?
+    /// Holds dynamic value in the interpreter.
     pub literal: Option<LoxLiteral>,
+    /// Line number of the current token in the source code.
     pub line: i32,
 }
 

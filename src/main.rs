@@ -5,10 +5,13 @@ use std::io::{stdin, Write};
 use std::process::exit;
 use std::sync::Mutex;
 use std::{env, fs};
+
 mod expr;
+mod interpreter;
 mod parser;
 mod scanner;
 mod token;
+
 use expr::{AstPrinter, Expr};
 use parser::Parser;
 use scanner::Scanner;

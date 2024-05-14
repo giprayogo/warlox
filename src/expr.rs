@@ -3,7 +3,7 @@ use crate::token::{LoxLiteral, Token};
 // NOTE: Juggling between
 // Type parameter (type = ...) and generic <T>
 // Trait vs enum
-trait ExprVisitor {
+pub trait ExprVisitor {
     type Output;
 
     fn visit(&self, expr: &Expr) -> Self::Output {

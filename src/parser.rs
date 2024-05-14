@@ -122,6 +122,7 @@ impl Parser {
 
     fn primary(&mut self) -> Result<Expr> {
         // TODO: Refactor so that it can use normal Rust match
+        // TODO: I think this TokenType actually makes thing confusing...
         use TokenType::*;
 
         if self.match_token_type(&[False]) {

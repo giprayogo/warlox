@@ -133,6 +133,8 @@ impl Parser {
             Ok(Expr::Literal {
                 value: Some(LoxLiteral::Boolean(true)),
             })
+        } else if self.match_token_type(&[Nil]) {
+            Ok(Expr::Literal { value: None })
         } else if self.match_token_type(&[Number, String]) {
             Ok(Expr::Literal {
                 value: self.previous().literal.clone(),

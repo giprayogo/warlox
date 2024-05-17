@@ -2,7 +2,7 @@ use core::fmt;
 
 use crate::{
     expr::Expr,
-    token::{LoxLiteral, Token, TokenType},
+    token::{LoxValue, Token, TokenType},
 };
 
 type Result<T> = std::result::Result<T, ParseError>;
@@ -127,11 +127,11 @@ impl Parser {
 
         if self.match_token_type(&[False]) {
             Ok(Expr::Literal {
-                value: Some(LoxLiteral::Boolean(false)),
+                value: Some(LoxValue::Boolean(false)),
             })
         } else if self.match_token_type(&[True]) {
             Ok(Expr::Literal {
-                value: Some(LoxLiteral::Boolean(true)),
+                value: Some(LoxValue::Boolean(true)),
             })
         } else if self.match_token_type(&[Nil]) {
             Ok(Expr::Literal { value: None })

@@ -1,4 +1,4 @@
-use crate::token::{LoxLiteral, Token};
+use crate::token::{LoxValue, Token};
 
 // NOTE: Juggling between
 // Type parameter (type = ...) and generic <T>
@@ -28,7 +28,7 @@ pub enum Expr {
         expression: Box<Expr>,
     },
     Literal {
-        value: Option<LoxLiteral>,
+        value: Option<LoxValue>,
     },
     Unary {
         operator: Token,

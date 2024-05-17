@@ -15,7 +15,7 @@ mod token;
 use expr::{AstPrinter, Expr};
 use parser::Parser;
 use scanner::Scanner;
-use token::{LoxLiteral, Token, TokenType};
+use token::{LoxValue, Token, TokenType};
 
 // TODO: Perhaps error should be its own module
 static HAD_ERROR: Mutex<bool> = Mutex::new(false);
@@ -26,13 +26,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         left: Box::new(Expr::Unary {
             operator: Token::new(TokenType::Minus, "-".to_string(), None, 1),
             right: Box::new(Expr::Literal {
-                value: Some(LoxLiteral::Double(123.0)),
+                value: Some(LoxValue::Double(123.0)),
             }),
         }),
         operator: Token::new(TokenType::Star, "*".to_string(), None, 1),
         right: Box::new(Expr::Grouping {
             expression: Box::new(Expr::Literal {
-                value: Some(LoxLiteral::Double(45.67)),
+                value: Some(LoxValue::Double(45.67)),
             }),
         }),
     };

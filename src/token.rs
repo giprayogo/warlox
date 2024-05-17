@@ -11,7 +11,7 @@ pub struct Token {
     pub lexeme: String,
     // TODO: Part of type? Why is this even here?
     /// Holds dynamic value in the interpreter.
-    pub literal: Option<LoxLiteral>,
+    pub literal: Option<LoxValue>,
     /// Line number of the current token in the source code.
     pub line: i32,
 }
@@ -20,7 +20,7 @@ impl Token {
     pub fn new(
         token_type: TokenType,
         lexeme: String,
-        literal: Option<LoxLiteral>,
+        literal: Option<LoxValue>,
         line: i32,
     ) -> Self {
         Self {
@@ -48,18 +48,20 @@ impl Display for Token {
     }
 }
 
-/// Acceptable literal types in Lox. TODO: Both should be separate token type??
+/// Acceptable literal types in Lox.
+// TODO: Should this be merged with TokenType?
+// TODO: Should include None.
 #[derive(Debug, Clone)]
-pub enum LoxLiteral {
+pub enum LoxValue {
     String(String),
     Double(f64),
     Boolean(bool),
 }
 
 // TODO: Can be joined with normal Token
-impl Display for LoxLiteral {
+impl Display for LoxValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use LoxLiteral::*;
+        use LoxValue::*;
         match self {
             Double(v) => write!(f, "{v}"),
             String(v) => write!(f, "{v}"),

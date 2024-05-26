@@ -11,18 +11,13 @@ pub struct Token {
     pub lexeme: String,
     // TODO: Part of type? Why is this even here?
     /// Holds dynamic value in the interpreter.
-    pub literal: Option<LoxValue>,
+    pub literal: Value,
     /// Line number of the current token in the source code.
     pub line: i32,
 }
 
 impl Token {
-    pub fn new(
-        token_type: TokenType,
-        lexeme: String,
-        literal: Option<LoxValue>,
-        line: i32,
-    ) -> Self {
+    pub fn new(token_type: TokenType, lexeme: String, literal: Value, line: i32) -> Self {
         Self {
             token_type,
             lexeme,
@@ -39,8 +34,8 @@ impl Display for Token {
             "{:?}{}, ln {} \"{}\"",
             self.token_type,
             match &self.literal {
-                Some(v) => format!(" {v:?}"),
-                None => "".into(),
+                Value::Null => "".into(),
+                v => format!(" {v:?}"),
             },
             self.line,
             self.lexeme,
@@ -48,24 +43,23 @@ impl Display for Token {
     }
 }
 
-/// Acceptable literal types in Lox.
-// TODO: Should this be merged with TokenType?
-// TODO: Should include None.
+/// Values in Lox.
 #[derive(Debug, Clone)]
-pub enum LoxValue {
+pub enum Value {
     String(String),
-    Double(f64),
+    Number(f64),
     Boolean(bool),
+    Null,
 }
 
-// TODO: Can be joined with normal Token
-impl Display for LoxValue {
+impl Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use LoxValue::*;
+        use Value::*;
         match self {
-            Double(v) => write!(f, "{v}"),
+            Number(v) => write!(f, "{v}"),
             String(v) => write!(f, "{v}"),
             Boolean(v) => write!(f, "{v}"),
+            Null => write!(f, "null"),
         }
     }
 }

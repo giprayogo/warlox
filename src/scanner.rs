@@ -1,5 +1,5 @@
 use crate::error;
-use crate::token::{LoxValue, Token, TokenType};
+use crate::token::{Token, TokenType, Value};
 use std::mem;
 use std::str::FromStr;
 
@@ -41,8 +41,12 @@ impl Scanner {
             self.start = self.current;
             self.scan_token()
         }
-        self.tokens
-            .push(Token::new(TokenType::EoF, "".to_string(), None, self.line));
+        self.tokens.push(Token::new(
+            TokenType::EoF,
+            "".to_string(),
+            Value::Null,
+            self.line,
+        ));
         // TODO: Ugly
         mem::take(&mut self.tokens)
     }
@@ -129,7 +133,7 @@ impl Scanner {
             .iter()
             .collect();
         // TODO: I don't think I need these encapsulations
-        self.add_token_literal(TokenType::String, Some(LoxValue::String(value)))
+        self.add_token_literal(TokenType::String, Value::String(value))
     }
 
     /// Consume a string of characters producing a number literal token
@@ -153,14 +157,14 @@ impl Scanner {
         self.add_token_literal(
             TokenType::Number,
             // TODO: Ugly
-            Some(LoxValue::Double(
+            Value::Number(
                 f64::from_str(
                     &(self.source[self.start..self.current]
                         .iter()
                         .collect::<String>()),
                 )
                 .unwrap(),
-            )),
+            ),
         )
     }
 
@@ -182,11 +186,11 @@ impl Scanner {
 
     /// Push a single token into the internal collection. TODO: I would like a dedicated collection type for tokens which take care of this?
     fn add_token(&mut self, token_type: TokenType) {
-        self.add_token_literal(token_type, None)
+        self.add_token_literal(token_type, Value::Null)
     }
 
     /// Push a token with literal value
-    fn add_token_literal(&mut self, token_type: TokenType, literal_value: Option<LoxValue>) {
+    fn add_token_literal(&mut self, token_type: TokenType, literal_value: Value) {
         // TODO: I think better integration with iterator type is possible
         let lexeme: String = self.source[self.start..self.current].iter().collect();
         self.tokens

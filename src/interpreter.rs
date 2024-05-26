@@ -1,55 +1,94 @@
 use crate::expr::{Expr, ExprVisitor};
-use crate::token::{LoxValue, TokenType, TokenType::*};
+use crate::token::{Token, TokenType::*, Value};
 
 pub struct Interpreter;
 
+type LineNumber = i32;
+
+// TODO: Should they actually be grouped? Really?
+pub enum RuntimeError {
+    /// Unary operator taking non-number operand
+    OperandNotNumber(LineNumber),
+    /// Binary operator taking non-number operand
+    OperandsNotNumbers(LineNumber),
+    /// Plus operator taking non-number or string operand
+    OperandsNotNumbersOrStrings(LineNumber),
+}
+
 impl Interpreter {
-    // TODO: Re-consider this visitor trait
-    fn evaluate(&self, expr: &Expr) -> Option<LoxValue> {
+    // TODO: Re-consider this "visitor" pattern
+    fn evaluate(&self, expr: &Expr) -> Result<Value, RuntimeError> {
         self.visit(expr)
     }
 
-    fn is_truthy(&self, literal: Option<LoxValue>) -> bool {
-        match literal {
-            Some(literal) => match literal {
-                LoxValue::Boolean(bool) => bool,
-                LoxValue::String(_) => true,
-                LoxValue::Double(_) => true,
-            },
-            None => false,
-        }
-    }
+    pub fn interpret(expr: Expr) {}
+}
 
-    fn is_equal(&self, a: Option<LoxValue>, b: Option<LoxValue>) -> bool {
-        match (a, b) {
-            (None, None) => true,
-            (None, _) => false,
-            (_, None) => false,
-            (Some(LoxValue::Boolean(a)), Some(LoxValue::Boolean(b))) => a == b,
-            (Some(LoxValue::String(a)), Some(LoxValue::String(b))) => a == b,
-            (Some(LoxValue::Double(a)), Some(LoxValue::Double(b))) => a == b,
-            _ => false,
-        }
+// TODO: Directly return Value?
+/// Lox definition of "truthy" value
+fn is_truthy(literal: Value) -> bool {
+    match literal {
+        Value::Null => false,
+        Value::Boolean(bool) => bool,
+        Value::String(_) => true,
+        Value::Number(_) => true,
+    }
+}
+
+// TODO: Directly return Value?
+/// Lox definition of "equal" value
+fn is_equal(a: Value, b: Value) -> bool {
+    match (a, b) {
+        (Value::Null, Value::Null) => true,
+        (Value::Null, _) => false,
+        (_, Value::Null) => false,
+        (Value::Boolean(a), Value::Boolean(b)) => a == b,
+        (Value::String(a), Value::String(b)) => a == b,
+        (Value::Number(a), Value::Number(b)) => a == b,
+        _ => false,
+    }
+}
+
+// TODO: Can I express that this expect an unary expression in the function signature?
+/// Check if an unary operator's operand is number
+fn check_number_operand(operator: &Token, operand: Value) -> Result<f64, RuntimeError> {
+    match operand {
+        Value::Number(v) => Ok(v),
+        _ => Err(RuntimeError::OperandNotNumber(operator.line)),
+    }
+}
+
+// TODO: Can I express that this expect a binary expression in the function signature?
+/// Check if a binary operator's operands are numbers
+fn check_number_operands(
+    operator: &Token,
+    left: Value,
+    right: Value,
+) -> Result<(f64, f64), RuntimeError> {
+    match (left, right) {
+        (Value::Number(left), Value::Number(right)) => Ok((left, right)),
+        _ => Err(RuntimeError::OperandsNotNumbers(operator.line)),
     }
 }
 
 impl ExprVisitor for Interpreter {
-    type Output = Option<LoxValue>;
+    type Output = Result<Value, RuntimeError>;
 
     fn visit(&self, expr: &Expr) -> Self::Output {
         match expr {
-            Expr::Literal { value } => value.clone(), // TODO: consider not cloning
+            Expr::Literal { value } => Ok(value.clone()), // TODO: consider not cloning
             Expr::Grouping { expression } => self.evaluate(expression),
             Expr::Unary { operator, right } => {
-                let right = self.evaluate(right);
+                // Propagate error
+                let right = match self.evaluate(right) {
+                    Ok(v) => v,
+                    e => return e,
+                };
 
                 match operator.token_type {
-                    Minus => right.map(|x| match x {
-                        LoxValue::Double(v) => LoxValue::Double(-v),
-                        _ => unimplemented!(),
-                    }),
-                    Bang => Some(LoxValue::Boolean(self.is_truthy(right))),
-                    _ => panic!("Unexpected expression: {expr:?}"),
+                    Minus => check_number_operand(operator, right).map(Value::Number),
+                    Bang => Ok(Value::Boolean(is_truthy(right))),
+                    _ => unreachable!(), // TODO: Can this be expressed by the type instead?
                 }
             }
             Expr::Binary {
@@ -57,72 +96,43 @@ impl ExprVisitor for Interpreter {
                 operator,
                 right,
             } => {
-                // let left = self
-                //     .evaluate(left)
-                //     .expect("Unexpected nil value in binary expression.");
-                // let right = self
-                //     .evaluate(right)
-                //     .expect("Unexpected nil value in binary expression.");
-                let left = self.evaluate(left);
-                let right = self.evaluate(right);
+                // Propagate error
+                let left = match self.evaluate(left) {
+                    Ok(v) => v,
+                    e => return e,
+                };
+                let right = match self.evaluate(right) {
+                    Ok(v) => v,
+                    e => return e,
+                };
 
-                // Rust forces me to not blindly cast things!
-                // TODO: generic-ize
                 match operator.token_type {
-                    Greater => match (left, right) {
-                        (Some(LoxValue::Double(a)), Some(LoxValue::Double(b))) => {
-                            Some(LoxValue::Boolean(a > b))
-                        }
-                        _ => panic!("Greater operator only works on Number values."),
-                    },
-                    GreaterEqual => match (left, right) {
-                        (Some(LoxValue::Double(a)), Some(LoxValue::Double(b))) => {
-                            Some(LoxValue::Boolean(a >= b))
-                        }
-                        _ => panic!("GreaterEqual operator only works on Number values."),
-                    },
-                    Less => match (left, right) {
-                        (Some(LoxValue::Double(a)), Some(LoxValue::Double(b))) => {
-                            Some(LoxValue::Boolean(a < b))
-                        }
-                        _ => panic!("Less operator only works on Number values."),
-                    },
-                    LessEqual => match (left, right) {
-                        (Some(LoxValue::Double(a)), Some(LoxValue::Double(b))) => {
-                            Some(LoxValue::Boolean(a <= b))
-                        }
-                        _ => panic!("LessEqual operator only works on Number values."),
-                    },
-                    Minus => match (left, right) {
-                        (Some(LoxValue::Double(a)), Some(LoxValue::Double(b))) => {
-                            Some(LoxValue::Double(a - b))
-                        }
-                        _ => panic!("Minus operator only works on Number values."),
-                    },
+                    Greater => check_number_operands(operator, left, right)
+                        .map(|(left, right)| Value::Boolean(left > right)),
+                    GreaterEqual => check_number_operands(operator, left, right)
+                        .map(|(left, right)| Value::Boolean(left >= right)),
+                    Less => check_number_operands(operator, left, right)
+                        .map(|(left, right)| Value::Boolean(left < right)),
+                    LessEqual => check_number_operands(operator, left, right)
+                        .map(|(left, right)| Value::Boolean(left <= right)),
+                    Minus => check_number_operands(operator, left, right)
+                        .map(|(left, right)| Value::Number(left - right)),
                     Plus => match (left, right) {
-                        (Some(LoxValue::Double(a)), Some(LoxValue::Double(b))) => {
-                            Some(LoxValue::Double(a + b))
+                        (Value::Number(left), Value::Number(right)) => {
+                            Ok(Value::Number(left + right))
                         }
-                        (Some(LoxValue::String(a)), Some(LoxValue::String(b))) => {
-                            Some(LoxValue::String(a + &b))
+                        (Value::String(left), Value::String(right)) => {
+                            Ok(Value::String(left + &right))
                         }
-                        _ => panic!("Plus operator only works on Number or String values."),
+                        _ => Err(RuntimeError::OperandsNotNumbersOrStrings(operator.line)),
                     },
-                    Slash => match (left, right) {
-                        (Some(LoxValue::Double(a)), Some(LoxValue::Double(b))) => {
-                            Some(LoxValue::Double(a / b))
-                        }
-                        _ => panic!("Slash operator only works on Number values."),
-                    },
-                    Star => match (left, right) {
-                        (Some(LoxValue::Double(a)), Some(LoxValue::Double(b))) => {
-                            Some(LoxValue::Double(a * b))
-                        }
-                        _ => panic!("Star operator only works on Number values."),
-                    },
-                    BangEqual => Some(LoxValue::Boolean(self.is_equal(left, right))),
-                    EqualEqual => Some(LoxValue::Boolean(!self.is_equal(left, right))),
-                    _ => panic!("Unexpected binary operator."),
+                    Slash => check_number_operands(operator, left, right)
+                        .map(|(left, right)| Value::Number(left / right)),
+                    Star => check_number_operands(operator, left, right)
+                        .map(|(left, right)| Value::Number(left * right)),
+                    BangEqual => Ok(Value::Boolean(is_equal(left, right))),
+                    EqualEqual => Ok(Value::Boolean(!is_equal(left, right))),
+                    _ => unreachable!(), // TODO: Can this be expressed by the type instead?
                 }
             }
         }

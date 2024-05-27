@@ -1,11 +1,14 @@
 use crate::expr::{Expr, ExprVisitor};
-use crate::token::{Token, TokenType::*, Value};
+use crate::token::{Token, TokenType, Value};
+use std::error::Error;
+use std::fmt;
 
 pub struct Interpreter;
 
 type LineNumber = i32;
 
 // TODO: Should they actually be grouped? Really?
+#[derive(Debug)]
 pub enum RuntimeError {
     /// Unary operator taking non-number operand
     OperandNotNumber(LineNumber),
@@ -15,14 +18,27 @@ pub enum RuntimeError {
     OperandsNotNumbersOrStrings(LineNumber),
 }
 
-impl Interpreter {
-    // TODO: Re-consider this "visitor" pattern
-    fn evaluate(&self, expr: &Expr) -> Result<Value, RuntimeError> {
-        self.visit(expr)
+impl fmt::Display for RuntimeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::OperandNotNumber(line_number) => {
+                write!(f, "Operand must be a number.\n[line {}]", line_number)
+            }
+            Self::OperandsNotNumbers(line_number) => {
+                write!(f, "Operands must be numbers.\n[line {}]", line_number)
+            }
+            Self::OperandsNotNumbersOrStrings(line_number) => {
+                write!(
+                    f,
+                    "Operands must be two numbers or two strings.\n[line {}]",
+                    line_number
+                )
+            }
+        }
     }
-
-    pub fn interpret(expr: Expr) {}
 }
+
+impl Error for RuntimeError {}
 
 // TODO: Directly return Value?
 /// Lox definition of "truthy" value
@@ -71,6 +87,32 @@ fn check_number_operands(
     }
 }
 
+// TODO: Similar logic is also implemented on AstPrinter
+fn stringify(value: Value) -> String {
+    match value {
+        Value::Null => "nil".to_string(),
+        v => format!("{v}"),
+    }
+}
+
+impl Interpreter {
+    // TODO: Re-consider this "visitor" pattern
+    pub fn new() -> Self {
+        Self
+    }
+
+    fn evaluate(&self, expr: &Expr) -> Result<Value, RuntimeError> {
+        self.visit(expr)
+    }
+
+    pub fn interpret(&self, expr: Expr) -> String {
+        match self.evaluate(&expr) {
+            Ok(v) => stringify(v),
+            Err(e) => format!("{e}"),
+        }
+    }
+}
+
 impl ExprVisitor for Interpreter {
     type Output = Result<Value, RuntimeError>;
 
@@ -86,8 +128,8 @@ impl ExprVisitor for Interpreter {
                 };
 
                 match operator.token_type {
-                    Minus => check_number_operand(operator, right).map(Value::Number),
-                    Bang => Ok(Value::Boolean(is_truthy(right))),
+                    TokenType::Minus => check_number_operand(operator, right).map(Value::Number),
+                    TokenType::Bang => Ok(Value::Boolean(is_truthy(right))),
                     _ => unreachable!(), // TODO: Can this be expressed by the type instead?
                 }
             }
@@ -107,17 +149,17 @@ impl ExprVisitor for Interpreter {
                 };
 
                 match operator.token_type {
-                    Greater => check_number_operands(operator, left, right)
+                    TokenType::Greater => check_number_operands(operator, left, right)
                         .map(|(left, right)| Value::Boolean(left > right)),
-                    GreaterEqual => check_number_operands(operator, left, right)
+                    TokenType::GreaterEqual => check_number_operands(operator, left, right)
                         .map(|(left, right)| Value::Boolean(left >= right)),
-                    Less => check_number_operands(operator, left, right)
+                    TokenType::Less => check_number_operands(operator, left, right)
                         .map(|(left, right)| Value::Boolean(left < right)),
-                    LessEqual => check_number_operands(operator, left, right)
+                    TokenType::LessEqual => check_number_operands(operator, left, right)
                         .map(|(left, right)| Value::Boolean(left <= right)),
-                    Minus => check_number_operands(operator, left, right)
+                    TokenType::Minus => check_number_operands(operator, left, right)
                         .map(|(left, right)| Value::Number(left - right)),
-                    Plus => match (left, right) {
+                    TokenType::Plus => match (left, right) {
                         (Value::Number(left), Value::Number(right)) => {
                             Ok(Value::Number(left + right))
                         }
@@ -126,12 +168,12 @@ impl ExprVisitor for Interpreter {
                         }
                         _ => Err(RuntimeError::OperandsNotNumbersOrStrings(operator.line)),
                     },
-                    Slash => check_number_operands(operator, left, right)
+                    TokenType::Slash => check_number_operands(operator, left, right)
                         .map(|(left, right)| Value::Number(left / right)),
-                    Star => check_number_operands(operator, left, right)
+                    TokenType::Star => check_number_operands(operator, left, right)
                         .map(|(left, right)| Value::Number(left * right)),
-                    BangEqual => Ok(Value::Boolean(is_equal(left, right))),
-                    EqualEqual => Ok(Value::Boolean(!is_equal(left, right))),
+                    TokenType::BangEqual => Ok(Value::Boolean(is_equal(left, right))),
+                    TokenType::EqualEqual => Ok(Value::Boolean(!is_equal(left, right))),
                     _ => unreachable!(), // TODO: Can this be expressed by the type instead?
                 }
             }

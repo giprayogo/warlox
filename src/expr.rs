@@ -75,7 +75,7 @@ impl ExprVisitor for AstPrinter {
             } => self.parenthesize(&operator.lexeme, &[left, right]),
             Expr::Grouping { expression } => self.parenthesize("group", &[expression]),
             Expr::Literal { value } => match value {
-                Value::Null => "".to_string(),
+                Value::Null => "nil".to_string(),
                 v => format!("{v}"),
             },
             Expr::Unary { operator, right } => self.parenthesize(&operator.lexeme, &[right]),

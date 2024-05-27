@@ -13,6 +13,7 @@ mod scanner;
 mod token;
 
 use expr::{AstPrinter, Expr};
+use interpreter::Interpreter;
 use parser::Parser;
 use scanner::Scanner;
 use token::{Token, TokenType, Value};
@@ -91,7 +92,10 @@ fn run(source: &str) {
         }
     };
 
-    println!("{}", AstPrinter.print(&expression));
+    let interpreter = Interpreter::new();
+    // TODO: Consider error handling here?
+    println!("{}", interpreter.interpret(expression));
+    // println!("{}", AstPrinter.print(&expression));
 }
 
 /// Rudimentary error reporting mechanism

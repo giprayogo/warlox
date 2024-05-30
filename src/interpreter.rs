@@ -16,6 +16,8 @@ pub enum RuntimeError {
     OperandsNotNumbers(LineNumber),
     /// Plus operator taking non-number or string operand
     OperandsNotNumbersOrStrings(LineNumber),
+    /// Division by zero
+    DivideByZero(LineNumber),
 }
 
 impl fmt::Display for RuntimeError {
@@ -33,6 +35,9 @@ impl fmt::Display for RuntimeError {
                     "Operands must be two numbers or two strings.\n[line {}]",
                     line_number
                 )
+            }
+            Self::DivideByZero(line_number) => {
+                write!(f, "Division by zero [line {}]", line_number)
             }
         }
     }
@@ -174,8 +179,21 @@ impl ExprVisitor for Interpreter {
                         }
                         _ => Err(RuntimeError::OperandsNotNumbersOrStrings(operator.line)),
                     },
-                    TokenType::Slash => check_number_operands(operator, left, right)
-                        .map(|(left, right)| Value::Number(left / right)),
+                    TokenType::Slash => {
+                        match check_number_operands(operator, left, right)
+                            .map(|(left, right)| left / right)
+                        {
+                            Ok(v) => {
+                                // Reason: Chapter 7 Challenge 3
+                                if v.is_infinite() {
+                                    Err(RuntimeError::DivideByZero(operator.line))
+                                } else {
+                                    Ok(Value::Number(v))
+                                }
+                            }
+                            Err(e) => Err(e),
+                        }
+                    }
                     TokenType::Star => check_number_operands(operator, left, right)
                         .map(|(left, right)| Value::Number(left * right)),
                     TokenType::BangEqual => Ok(Value::Boolean(is_equal(left, right))),

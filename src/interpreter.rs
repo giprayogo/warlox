@@ -166,6 +166,12 @@ impl ExprVisitor for Interpreter {
                         (Value::String(left), Value::String(right)) => {
                             Ok(Value::String(left + &right))
                         }
+                        (Value::String(left), Value::Number(right)) => {
+                            Ok(Value::String(left + &right.to_string()))
+                        }
+                        (Value::Number(left), Value::String(right)) => {
+                            Ok(Value::String(left.to_string() + &right))
+                        }
                         _ => Err(RuntimeError::OperandsNotNumbersOrStrings(operator.line)),
                     },
                     TokenType::Slash => check_number_operands(operator, left, right)

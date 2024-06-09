@@ -17,6 +17,7 @@ pub trait ExprVisitor {
 }
 
 // TODO: add new() implementation? I don't like specifying Box again and again.
+// TODO: Alternative design, use "type" enum field within single Expr.
 // NOTE: Juggling between Enum and trait implementation for Expr
 #[derive(Debug)]
 pub enum Expr {
@@ -36,6 +37,11 @@ pub enum Expr {
         right: Box<Expr>,
     },
     Comma {
+        left: Box<Expr>,
+        right: Box<Expr>,
+    },
+    Ternary {
+        condition: Box<Expr>,
         left: Box<Expr>,
         right: Box<Expr>,
     },
@@ -85,6 +91,11 @@ impl ExprVisitor for AstPrinter {
             },
             Expr::Unary { operator, right } => self.parenthesize(&operator.lexeme, &[right]),
             Expr::Comma { left, right } => self.parenthesize(",", &[left, right]),
+            Expr::Ternary {
+                condition,
+                left,
+                right,
+            } => self.parenthesize("?", &[condition, left, right]),
         }
     }
 }

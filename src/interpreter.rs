@@ -123,19 +123,15 @@ impl ExprVisitor for Interpreter {
 
     fn visit(&self, expr: &Expr) -> Self::Output {
         match expr {
-            Expr::Literal { value } => Ok(value.clone()), // TODO: consider not cloning
+            Expr::Literal { value } => Ok(value.clone()), // TODO: Refactor to not clone.
             Expr::Grouping { expression } => self.evaluate(expression),
             Expr::Unary { operator, right } => {
-                // Propagate error
-                let right = match self.evaluate(right) {
-                    Ok(v) => v,
-                    e => return e,
-                };
+                let right = self.evaluate(right)?;
 
                 match operator.token_type {
                     TokenType::Minus => check_number_operand(operator, right).map(Value::Number),
                     TokenType::Bang => Ok(Value::Boolean(is_truthy(right))),
-                    _ => unreachable!(), // TODO: Can this be expressed by the type instead?
+                    _ => unreachable!(), // TODO: Can this be enforced by the type?
                 }
             }
             Expr::Binary {
@@ -143,15 +139,8 @@ impl ExprVisitor for Interpreter {
                 operator,
                 right,
             } => {
-                // Propagate error
-                let left = match self.evaluate(left) {
-                    Ok(v) => v,
-                    e => return e,
-                };
-                let right = match self.evaluate(right) {
-                    Ok(v) => v,
-                    e => return e,
-                };
+                let left = self.evaluate(left)?;
+                let right = self.evaluate(right)?;
 
                 match operator.token_type {
                     TokenType::Greater => check_number_operands(operator, left, right)
@@ -203,12 +192,19 @@ impl ExprVisitor for Interpreter {
                 }
             }
             Expr::Comma { left, right } => {
-                // TODO: Abstractize this pattern.
-                match self.evaluate(left) {
-                    Ok(v) => v,
-                    e => return e,
-                };
+                self.evaluate(left)?;
                 self.evaluate(right)
+            }
+            Expr::Ternary {
+                condition,
+                left,
+                right,
+            } => {
+                if is_truthy(self.evaluate(condition)?) {
+                    self.evaluate(left)
+                } else {
+                    self.evaluate(right)
+                }
             }
         }
     }

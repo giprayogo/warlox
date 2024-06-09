@@ -7,7 +7,8 @@ tree walk interpreter for Lox language.
 
 ```bnf
 expression     → comma ;
-comma          → equality ( "," equality )*
+comma          → ternary ( "," ternary )* ;
+ternary        → equality "?" ternary ":" ternary ;
 equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 term           → factor ( ( "-" | "+" ) factor )* ;

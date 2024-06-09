@@ -7,23 +7,44 @@ use crate::{
 
 type Result<T> = std::result::Result<T, ParseError>;
 
+#[derive(Debug, Clone, Copy)]
+enum ParseErrorType {
+    Colon,
+    Expression,
+    RightParen,
+}
+
 #[derive(Debug, Clone)]
 pub struct ParseError {
-    message: String,
-    token: Token, // TODO: Not ideal...
+    parse_error_type: ParseErrorType,
+    token: Token,
 }
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.token.token_type == TokenType::EoF {
-            write!(f, "{} at end {}", self.token.line, self.message)
+            write!(f, "{} at end {}", self.token.line, self.parse_error_type)
         } else {
             write!(
                 f,
                 "{} at '{}' {}",
-                self.token.line, self.token.lexeme, self.message
+                self.token.line, self.token.lexeme, self.parse_error_type
             )
         }
+    }
+}
+
+impl fmt::Display for ParseErrorType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                ParseErrorType::Colon => "Expect ':' after expression.".to_string(),
+                ParseErrorType::Expression => "Expect expression.".to_string(),
+                ParseErrorType::RightParen => "Expect ')' after expression.".to_string(),
+            }
+        )
     }
 }
 
@@ -47,13 +68,29 @@ impl Parser {
     }
 
     fn comma(&mut self) -> Result<Expr> {
-        let mut expr = self.equality()?;
+        let mut expr = self.ternary()?;
 
         while self.match_token_type(&[TokenType::Comma]) {
-            let operator = self.previous().clone();
-            let right = self.equality()?;
+            let right = self.ternary()?;
             expr = Expr::Comma {
                 left: Box::new(expr),
+                right: Box::new(right),
+            }
+        }
+
+        Ok(expr)
+    }
+
+    fn ternary(&mut self) -> Result<Expr> {
+        let mut expr = self.equality()?;
+
+        if self.match_token_type(&[TokenType::QuestionMark]) {
+            let left = self.ternary()?;
+            self.consume(TokenType::Colon, ParseErrorType::Colon)?;
+            let right = self.ternary()?;
+            expr = Expr::Ternary {
+                condition: Box::new(expr),
+                left: Box::new(left),
                 right: Box::new(right),
             }
         }
@@ -162,14 +199,14 @@ impl Parser {
         } else if self.match_token_type(&[LeftParen]) {
             let expr = self.expression()?;
             // TODO: I don't like how this is written
-            self.consume(RightParen, "Expect ')' after expression.")?;
+            self.consume(RightParen, ParseErrorType::RightParen)?;
             Ok(Expr::Grouping {
                 expression: Box::new(expr),
             })
         } else {
             Err(ParseError {
+                parse_error_type: ParseErrorType::Expression,
                 token: self.peek().clone(),
-                message: "Expect expression.".to_string(),
             })
         }
     }
@@ -218,17 +255,23 @@ impl Parser {
         &self.tokens[self.current - 1]
     }
 
-    fn consume(&mut self, token_type: TokenType, message: &str) -> Result<&Token> {
+    fn consume(
+        &mut self,
+        token_type: TokenType,
+        parse_error_type: ParseErrorType,
+    ) -> Result<&Token> {
         if self.check(&token_type) {
             Ok(self.advance())
         } else {
             Err(ParseError {
+                parse_error_type,
                 token: self.peek().clone(),
-                message: message.to_string(),
             })
         }
     }
 
+    // TODO: Temporarily allow unused.
+    #[allow(unused)]
     fn synchronize(&mut self) {
         self.advance();
 

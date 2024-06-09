@@ -37,8 +37,28 @@ impl Parser {
         Self { tokens, current: 0 }
     }
 
+    // TODO: I'm sure there's some equivalent method with standard iterator trait
+    pub fn parse(&mut self) -> Result<Expr> {
+        self.expression()
+    }
+
     fn expression(&mut self) -> Result<Expr> {
-        self.equality()
+        self.comma()
+    }
+
+    fn comma(&mut self) -> Result<Expr> {
+        let mut expr = self.equality()?;
+
+        while self.match_token_type(&[TokenType::Comma]) {
+            let operator = self.previous().clone();
+            let right = self.equality()?;
+            expr = Expr::Comma {
+                left: Box::new(expr),
+                right: Box::new(right),
+            }
+        }
+
+        Ok(expr)
     }
 
     fn equality(&mut self) -> Result<Expr> {
@@ -154,6 +174,7 @@ impl Parser {
         }
     }
 
+    /// Check if the next token matches one of the types, consuming it if true.
     fn match_token_type(&mut self, token_types: &[TokenType]) -> bool {
         for token_type in token_types {
             if self.check(token_type) {
@@ -185,11 +206,13 @@ impl Parser {
         matches!(self.peek().token_type, TokenType::EoF)
     }
 
+    /// Get the next token without consuming it.
     fn peek(&self) -> &Token {
         // TODO: A bit risky?
         &self.tokens[self.current]
     }
 
+    /// Get the previous token.
     fn previous(&self) -> &Token {
         // TODO: A bit risky?
         &self.tokens[self.current - 1]
@@ -229,10 +252,5 @@ impl Parser {
                 }
             }
         }
-    }
-
-    // TODO: I'm sure there's some equivalent method with standard iterator trait
-    pub fn parse(&mut self) -> Result<Expr> {
-        self.expression()
     }
 }

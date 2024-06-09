@@ -171,6 +171,7 @@ impl ExprVisitor for Interpreter {
                         (Value::String(left), Value::String(right)) => {
                             Ok(Value::String(left + &right))
                         }
+                        // Reason: Chapter 7 Challenge 2
                         (Value::String(left), Value::Number(right)) => {
                             Ok(Value::String(left + &right.to_string()))
                         }
@@ -200,6 +201,14 @@ impl ExprVisitor for Interpreter {
                     TokenType::EqualEqual => Ok(Value::Boolean(!is_equal(left, right))),
                     _ => unreachable!(), // TODO: Can this be expressed by the type instead?
                 }
+            }
+            Expr::Comma { left, right } => {
+                // TODO: Abstractize this pattern.
+                match self.evaluate(left) {
+                    Ok(v) => v,
+                    e => return e,
+                };
+                self.evaluate(right)
             }
         }
     }

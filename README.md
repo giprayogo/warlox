@@ -6,7 +6,8 @@ tree walk interpreter for Lox language.
 ## Grammar
 
 ```bnf
-expression     → equality ;
+expression     → comma ;
+comma          → equality ( "," equality )*
 equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 term           → factor ( ( "-" | "+" ) factor )* ;

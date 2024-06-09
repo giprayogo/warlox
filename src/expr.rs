@@ -16,6 +16,7 @@ pub trait ExprVisitor {
     // fn visit_unary(&self, expr: &Unary) {}
 }
 
+// TODO: add new() implementation? I don't like specifying Box again and again.
 // NOTE: Juggling between Enum and trait implementation for Expr
 #[derive(Debug)]
 pub enum Expr {
@@ -32,6 +33,10 @@ pub enum Expr {
     },
     Unary {
         operator: Token,
+        right: Box<Expr>,
+    },
+    Comma {
+        left: Box<Expr>,
         right: Box<Expr>,
     },
 }
@@ -79,6 +84,7 @@ impl ExprVisitor for AstPrinter {
                 v => format!("{v}"),
             },
             Expr::Unary { operator, right } => self.parenthesize(&operator.lexeme, &[right]),
+            Expr::Comma { left, right } => self.parenthesize(",", &[left, right]),
         }
     }
 }

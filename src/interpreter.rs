@@ -186,8 +186,8 @@ impl ExprVisitor for Interpreter {
                     }
                     TokenType::Star => check_number_operands(operator, left, right)
                         .map(|(left, right)| Value::Number(left * right)),
-                    TokenType::BangEqual => Ok(Value::Boolean(is_equal(left, right))),
-                    TokenType::EqualEqual => Ok(Value::Boolean(!is_equal(left, right))),
+                    TokenType::BangEqual => Ok(Value::Boolean(!is_equal(left, right))),
+                    TokenType::EqualEqual => Ok(Value::Boolean(is_equal(left, right))),
                     _ => unreachable!(), // TODO: Can this be expressed by the type instead?
                 }
             }

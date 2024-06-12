@@ -12,6 +12,7 @@ enum ParseErrorType {
     Colon,
     Expression,
     RightParen,
+    LeftHandOperand,
 }
 
 #[derive(Debug, Clone)]
@@ -43,6 +44,8 @@ impl fmt::Display for ParseErrorType {
                 ParseErrorType::Colon => "Expect ':' after expression.".to_string(),
                 ParseErrorType::Expression => "Expect expression.".to_string(),
                 ParseErrorType::RightParen => "Expect ')' after expression.".to_string(),
+                ParseErrorType::LeftHandOperand =>
+                    "Missing binary operator left hand operand.".to_string(),
             }
         )
     }
@@ -99,9 +102,18 @@ impl Parser {
     }
 
     fn equality(&mut self) -> Result<Expr> {
+        let equality_tokens = [TokenType::BangEqual, TokenType::EqualEqual];
+        if self.match_token_type(&equality_tokens) {
+            self.comparison()?;
+            return Err(ParseError {
+                parse_error_type: ParseErrorType::LeftHandOperand,
+                token: self.peek().clone(),
+            });
+        }
+
         let mut expr = self.comparison()?;
 
-        while self.match_token_type(&[TokenType::BangEqual, TokenType::EqualEqual]) {
+        while self.match_token_type(&equality_tokens) {
             let operator = self.previous().clone();
             let right = self.comparison()?;
             expr = Expr::Binary {
@@ -115,14 +127,23 @@ impl Parser {
     }
 
     fn comparison(&mut self) -> Result<Expr> {
-        let mut expr = self.term()?;
-
-        while self.match_token_type(&[
+        let token_types = [
             TokenType::Greater,
             TokenType::GreaterEqual,
             TokenType::Less,
             TokenType::LessEqual,
-        ]) {
+        ];
+        if self.match_token_type(&token_types) {
+            self.comparison()?;
+            return Err(ParseError {
+                parse_error_type: ParseErrorType::LeftHandOperand,
+                token: self.peek().clone(),
+            });
+        }
+
+        let mut expr = self.term()?;
+
+        while self.match_token_type(&token_types) {
             let operator = self.previous().clone();
             let right = self.term()?;
             expr = Expr::Binary {
@@ -136,9 +157,18 @@ impl Parser {
     }
 
     fn term(&mut self) -> Result<Expr> {
+        let token_types = [TokenType::Minus, TokenType::Plus];
+        if self.match_token_type(&token_types) {
+            self.comparison()?;
+            return Err(ParseError {
+                parse_error_type: ParseErrorType::LeftHandOperand,
+                token: self.peek().clone(),
+            });
+        }
+
         let mut expr = self.factor()?;
 
-        while self.match_token_type(&[TokenType::Minus, TokenType::Plus]) {
+        while self.match_token_type(&token_types) {
             let operator = self.previous().clone();
             let right = self.factor()?;
             expr = Expr::Binary {
@@ -152,9 +182,18 @@ impl Parser {
     }
 
     fn factor(&mut self) -> Result<Expr> {
+        let token_types = [TokenType::Slash, TokenType::Star];
+        if self.match_token_type(&token_types) {
+            self.comparison()?;
+            return Err(ParseError {
+                parse_error_type: ParseErrorType::LeftHandOperand,
+                token: self.peek().clone(),
+            });
+        }
+
         let mut expr = self.unary()?;
 
-        while self.match_token_type(&[TokenType::Slash, TokenType::Star]) {
+        while self.match_token_type(&token_types) {
             let operator = self.previous().clone();
             let right = self.unary()?;
             expr = Expr::Binary {
@@ -211,7 +250,7 @@ impl Parser {
         }
     }
 
-    /// Check if the next token matches one of the types, consuming it if true.
+    /// Check if the current token matches one of the token types, consuming it if true.
     fn match_token_type(&mut self, token_types: &[TokenType]) -> bool {
         for token_type in token_types {
             if self.check(token_type) {
@@ -222,7 +261,8 @@ impl Parser {
         false
     }
 
-    // NOTE: First target for refactor
+    // * NOTE: equivalent to peek() in PeekableIterator trait.
+    /// Check if the current token matchees token type without advancing the iterator.
     fn check(&self, token_type: &TokenType) -> bool {
         if self.is_at_end() {
             false
@@ -231,6 +271,8 @@ impl Parser {
         }
     }
 
+    // * NOTE: equivalent to next() in Iterator trait.
+    /// Advance the iterator, returning the current token.
     fn advance(&mut self) -> &Token {
         if !self.is_at_end() {
             self.current += 1
@@ -249,6 +291,8 @@ impl Parser {
         &self.tokens[self.current]
     }
 
+    // * NOTE: the only reason why previous is required is because
+    // * match_token_type advances the iterator... refactor!
     /// Get the previous token.
     fn previous(&self) -> &Token {
         // TODO: A bit risky?

@@ -10,6 +10,7 @@ mod expr;
 mod interpreter;
 mod parser;
 mod scanner;
+mod stmt;
 mod token;
 
 use expr::{AstPrinter, Expr};
@@ -84,17 +85,16 @@ fn run(source: &str) {
     let mut scanner = Scanner::new(source);
     let tokens = scanner.scan_tokens();
     let mut parser = Parser::new(tokens);
-    let expression = match parser.parse() {
+    let statements = match parser.parse() {
         Ok(v) => v,
         Err(e) => {
-            println!("{e}");
+            eprintln!("{e}");
             return;
         }
     };
 
     let interpreter = Interpreter::new();
-    // TODO: Consider error handling here?
-    println!("{}", interpreter.interpret(expression));
+    interpreter.interpret(&statements);
     // println!("{}", AstPrinter.print(&expression));
 }
 

@@ -6,7 +6,7 @@ use crate::token::{Token, Value};
 pub trait ExprVisitor {
     type Output;
 
-    fn visit(&self, expr: &Expr) -> Self::Output {
+    fn visit_expr(&self, expr: &Expr) -> Self::Output {
         println!("{expr:?}");
         unimplemented!()
     }
@@ -54,6 +54,9 @@ pub enum Expr {
 //         visitor.visit(self)
 //     }
 // }
+//
+
+// TODO: I feel like these should be at a separate file...
 
 pub struct AstPrinter;
 
@@ -61,14 +64,14 @@ impl AstPrinter {
     fn parenthesize(&self, name: &str, exprs: &[&Expr]) -> String {
         let inner = exprs
             .iter()
-            .map(|e| self.visit(e))
+            .map(|e| self.visit_expr(e))
             .reduce(|acc, e| acc + " " + &e)
             .unwrap_or("".to_string());
         format!("({name} {inner})")
     }
 
     pub fn print(&self, expr: &Expr) -> String {
-        self.visit(expr)
+        self.visit_expr(expr)
     }
 }
 
@@ -77,7 +80,7 @@ impl ExprVisitor for AstPrinter {
 
     // # NOTE: At the end of the day not so much of a visitor?? ¯\_(ツ)_/¯
     // Perhaps will be revisited (got it?) when I added statements
-    fn visit(&self, expr: &Expr) -> String {
+    fn visit_expr(&self, expr: &Expr) -> String {
         match expr {
             Expr::Binary {
                 left,

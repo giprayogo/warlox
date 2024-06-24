@@ -2,6 +2,7 @@ use core::fmt;
 
 use crate::{
     expr::Expr,
+    stmt::Stmt,
     token::{Token, TokenType, Value},
 };
 
@@ -13,6 +14,7 @@ enum ParseErrorType {
     Expression,
     RightParen,
     LeftHandOperand,
+    Semicolon,
 }
 
 #[derive(Debug, Clone)]
@@ -40,8 +42,10 @@ impl fmt::Display for ParseErrorType {
         write!(
             f,
             "{}",
+            // TODO: Review variants; kinda repetitive.
             match self {
                 ParseErrorType::Colon => "Expect ':' after expression.".to_string(),
+                ParseErrorType::Semicolon => "Expect ';' after expression.".to_string(),
                 ParseErrorType::Expression => "Expect expression.".to_string(),
                 ParseErrorType::RightParen => "Expect ')' after expression.".to_string(),
                 ParseErrorType::LeftHandOperand =>
@@ -62,12 +66,40 @@ impl Parser {
     }
 
     // TODO: I'm sure there's some equivalent method with standard iterator trait
-    pub fn parse(&mut self) -> Result<Expr> {
-        self.expression()
+    pub fn parse(&mut self) -> Result<Vec<Stmt>> {
+        let mut statements = Vec::new();
+        while !self.is_at_end() {
+            statements.push(self.statement()?)
+        }
+        Ok(statements)
     }
 
     fn expression(&mut self) -> Result<Expr> {
         self.comma()
+    }
+
+    fn statement(&mut self) -> Result<Stmt> {
+        if self.match_token_type(&[TokenType::Print]) {
+            self.print_statement()
+        } else {
+            self.expression_statement()
+        }
+    }
+
+    fn print_statement(&mut self) -> Result<Stmt> {
+        let value = self.expression()?;
+        self.consume(TokenType::Semicolon, ParseErrorType::Semicolon)?;
+        Ok(Stmt::Print {
+            expression: Box::new(value),
+        })
+    }
+
+    fn expression_statement(&mut self) -> Result<Stmt> {
+        let expr = self.expression()?;
+        self.consume(TokenType::Semicolon, ParseErrorType::Semicolon)?;
+        Ok(Stmt::Expr {
+            expression: Box::new(expr),
+        })
     }
 
     fn comma(&mut self) -> Result<Expr> {

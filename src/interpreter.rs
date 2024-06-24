@@ -1,4 +1,5 @@
 use crate::expr::{Expr, ExprVisitor};
+use crate::stmt::{Stmt, StmtVisitor};
 use crate::token::{Token, TokenType, Value};
 use std::error::Error;
 use std::fmt;
@@ -92,28 +93,42 @@ fn check_number_operands(
     }
 }
 
-// TODO: Similar logic is also implemented on AstPrinter
-fn stringify(value: Value) -> String {
-    match value {
-        Value::Null => "nil".to_string(),
-        v => format!("{v}"),
-    }
-}
-
 impl Interpreter {
-    // TODO: Re-consider this "visitor" pattern
+    // TODO: Re-consider this "visitor" pattern; it becomes weird.
     pub fn new() -> Self {
         Self
     }
 
     fn evaluate(&self, expr: &Expr) -> Result<Value, RuntimeError> {
-        self.visit(expr)
+        self.visit_expr(expr)
     }
 
-    pub fn interpret(&self, expr: Expr) -> String {
-        match self.evaluate(&expr) {
-            Ok(v) => stringify(v),
-            Err(e) => format!("{e}"),
+    fn execute(&self, stmt: &Stmt) -> Result<(), RuntimeError> {
+        self.visit_stmt(stmt)
+    }
+
+    pub fn interpret(&self, statements: &[Stmt]) {
+        for statement in statements {
+            match self.execute(statement) {
+                Ok(_) => {}
+                Err(e) => eprintln!("{e}"),
+            }
+            // }.map_err(|e| eprintln!("{e}"));
+        }
+    }
+}
+
+impl StmtVisitor for Interpreter {
+    type Output = Result<(), RuntimeError>;
+
+    fn visit_stmt(&self, stmt: &Stmt) -> Self::Output {
+        match stmt {
+            Stmt::Expr { expression } => self.evaluate(expression).map(|_| {}),
+            Stmt::Print { expression } => {
+                let value = self.evaluate(expression)?;
+                println!("{value}");
+                Ok(())
+            }
         }
     }
 }
@@ -121,7 +136,7 @@ impl Interpreter {
 impl ExprVisitor for Interpreter {
     type Output = Result<Value, RuntimeError>;
 
-    fn visit(&self, expr: &Expr) -> Self::Output {
+    fn visit_expr(&self, expr: &Expr) -> Self::Output {
         match expr {
             Expr::Literal { value } => Ok(value.clone()), // TODO: Refactor to not clone.
             Expr::Grouping { expression } => self.evaluate(expression),

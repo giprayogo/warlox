@@ -34,7 +34,7 @@ impl Display for Token {
             "{:?}{}, ln {} \"{}\"",
             self.token_type,
             match &self.literal {
-                Value::Null => "".into(),
+                Value::Null => "nil".into(),
                 v => format!(" {v:?}"),
             },
             self.line,

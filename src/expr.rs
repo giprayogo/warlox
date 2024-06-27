@@ -1,8 +1,5 @@
 use crate::token::{Token, Value};
 
-// NOTE: Juggling between
-// Type parameter (type = ...) and generic <T>
-// Trait vs enum
 pub trait ExprVisitor {
     type Output;
 
@@ -10,15 +7,9 @@ pub trait ExprVisitor {
         println!("{expr:?}");
         unimplemented!()
     }
-    // fn visit_binary(&self, expr: &Binary) -> Self::Item {}
-    // fn visit_grouping(&self, expr: &Grouping) {}
-    // fn visit_literal(&self, expr: &Literal) {}
-    // fn visit_unary(&self, expr: &Unary) {}
 }
 
 // TODO: add new() implementation? I don't like specifying Box again and again.
-// TODO: Alternative design, use "type" enum field within single Expr.
-// NOTE: Juggling between Enum and trait implementation for Expr
 #[derive(Debug)]
 pub enum Expr {
     Binary {
@@ -36,6 +27,9 @@ pub enum Expr {
         operator: Token,
         right: Box<Expr>,
     },
+    Variable {
+        name: Token,
+    },
     Comma {
         left: Box<Expr>,
         right: Box<Expr>,
@@ -45,60 +39,4 @@ pub enum Expr {
         left: Box<Expr>,
         right: Box<Expr>,
     },
-}
-// trait Expr {
-//     fn accept<T>(&self, visitor: &dyn ExprVisitor<Item = T>) -> T;
-// }
-// impl Expr {
-//     fn accept<T>(&self, visitor: &dyn ExprVisitor<Output = T>) -> T {
-//         visitor.visit(self)
-//     }
-// }
-//
-
-// TODO: I feel like these should be at a separate file...
-
-pub struct AstPrinter;
-
-impl AstPrinter {
-    fn parenthesize(&self, name: &str, exprs: &[&Expr]) -> String {
-        let inner = exprs
-            .iter()
-            .map(|e| self.visit_expr(e))
-            .reduce(|acc, e| acc + " " + &e)
-            .unwrap_or("".to_string());
-        format!("({name} {inner})")
-    }
-
-    pub fn print(&self, expr: &Expr) -> String {
-        self.visit_expr(expr)
-    }
-}
-
-impl ExprVisitor for AstPrinter {
-    type Output = String;
-
-    // # NOTE: At the end of the day not so much of a visitor?? ¯\_(ツ)_/¯
-    // Perhaps will be revisited (got it?) when I added statements
-    fn visit_expr(&self, expr: &Expr) -> String {
-        match expr {
-            Expr::Binary {
-                left,
-                operator,
-                right,
-            } => self.parenthesize(&operator.lexeme, &[left, right]),
-            Expr::Grouping { expression } => self.parenthesize("group", &[expression]),
-            Expr::Literal { value } => match value {
-                Value::Null => "nil".to_string(),
-                v => format!("{v}"),
-            },
-            Expr::Unary { operator, right } => self.parenthesize(&operator.lexeme, &[right]),
-            Expr::Comma { left, right } => self.parenthesize(",", &[left, right]),
-            Expr::Ternary {
-                condition,
-                left,
-                right,
-            } => self.parenthesize("?", &[condition, left, right]),
-        }
-    }
 }

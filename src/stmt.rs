@@ -1,4 +1,5 @@
 use crate::expr::Expr;
+use crate::token::Token;
 
 pub trait StmtVisitor {
     type Output;
@@ -13,4 +14,5 @@ pub trait StmtVisitor {
 pub enum Stmt {
     Expr { expression: Box<Expr> },
     Print { expression: Box<Expr> },
+    Var { name: Token },
 }

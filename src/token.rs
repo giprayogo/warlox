@@ -141,6 +141,7 @@ impl FromStr for TokenType {
             "true" => Ok(Self::True),
             "var" => Ok(Self::Var),
             "while" => Ok(Self::While),
+            // TODO: Actually identifier; no need to follow the book to the letter!
             _ => Err(ParseTokenTypeError),
         }
     }

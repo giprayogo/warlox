@@ -14,7 +14,9 @@ enum ParseErrorType {
     Expression,
     RightParen,
     LeftHandOperand,
-    Semicolon,
+    SemicolonAfterExpresssion,
+    SemicolonAfterVarDeclaration,
+    VarName,
 }
 
 #[derive(Debug, Clone)]
@@ -45,11 +47,15 @@ impl fmt::Display for ParseErrorType {
             // TODO: Review variants; kinda repetitive.
             match self {
                 ParseErrorType::Colon => "Expect ':' after expression.".to_string(),
-                ParseErrorType::Semicolon => "Expect ';' after expression.".to_string(),
+                ParseErrorType::SemicolonAfterExpresssion =>
+                    "Expect ';' after expression.".to_string(),
+                ParseErrorType::SemicolonAfterVarDeclaration =>
+                    "Expect ';' after variable declaration.".to_string(),
                 ParseErrorType::Expression => "Expect expression.".to_string(),
                 ParseErrorType::RightParen => "Expect ')' after expression.".to_string(),
                 ParseErrorType::LeftHandOperand =>
                     "Missing binary operator left hand operand.".to_string(),
+                ParseErrorType::VarName => "Expect variable name.".to_string(),
             }
         )
     }
@@ -65,17 +71,51 @@ impl Parser {
         Self { tokens, current: 0 }
     }
 
-    // TODO: I'm sure there's some equivalent method with standard iterator trait
+    // TODO: Refactor as a standard iterator?
     pub fn parse(&mut self) -> Result<Vec<Stmt>> {
         let mut statements = Vec::new();
         while !self.is_at_end() {
-            statements.push(self.statement()?)
+            if let Some(v) = self.declaration() {
+                statements.push(v);
+            }
         }
         Ok(statements)
     }
 
-    fn expression(&mut self) -> Result<Expr> {
-        self.comma()
+    fn declaration(&mut self) -> Option<Stmt> {
+        let statement = if self.match_token_type(&[TokenType::Var]) {
+            self.var_declaration()
+        } else {
+            self.statement()
+        };
+        match statement {
+            Ok(v) => Some(v),
+            Err(_) => {
+                self.synchronize();
+                None
+            }
+        }
+    }
+
+    fn var_declaration(&mut self) -> Result<Stmt> {
+        let name = self
+            .consume(TokenType::Identifier, ParseErrorType::VarName)?
+            .clone();
+
+        let initializer = if self.match_token_type(&[TokenType::Equal]) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+
+        self.consume(
+            TokenType::Semicolon,
+            ParseErrorType::SemicolonAfterVarDeclaration,
+        );
+        Ok(Stmt::Var {
+            name,
+            expression: initializer,
+        })
     }
 
     fn statement(&mut self) -> Result<Stmt> {
@@ -88,18 +128,24 @@ impl Parser {
 
     fn print_statement(&mut self) -> Result<Stmt> {
         let value = self.expression()?;
-        self.consume(TokenType::Semicolon, ParseErrorType::Semicolon)?;
-        Ok(Stmt::Print {
-            expression: Box::new(value),
-        })
+        self.consume(
+            TokenType::Semicolon,
+            ParseErrorType::SemicolonAfterExpresssion,
+        )?;
+        Ok(Stmt::Print { expression: value })
     }
 
     fn expression_statement(&mut self) -> Result<Stmt> {
         let expr = self.expression()?;
-        self.consume(TokenType::Semicolon, ParseErrorType::Semicolon)?;
-        Ok(Stmt::Expr {
-            expression: Box::new(expr),
-        })
+        self.consume(
+            TokenType::Semicolon,
+            ParseErrorType::SemicolonAfterExpresssion,
+        )?;
+        Ok(Stmt::Expr { expression: expr })
+    }
+
+    fn expression(&mut self) -> Result<Expr> {
+        self.comma()
     }
 
     fn comma(&mut self) -> Result<Expr> {
@@ -267,6 +313,10 @@ impl Parser {
             Ok(Expr::Literal {
                 value: self.previous().literal.clone(),
             })
+        } else if self.match_token_type(&[Identifier]) {
+            Ok(Expr::Variable {
+                name: self.previous().clone(),
+            })
         } else if self.match_token_type(&[LeftParen]) {
             let expr = self.expression()?;
             // TODO: I don't like how this is written
@@ -346,8 +396,6 @@ impl Parser {
         }
     }
 
-    // TODO: Temporarily allow unused.
-    #[allow(unused)]
     fn synchronize(&mut self) {
         self.advance();
 
@@ -358,18 +406,11 @@ impl Parser {
 
             use TokenType::*;
             match self.peek().token_type {
-                Class => unimplemented!(),
-                Fun => unimplemented!(),
-                Var => unimplemented!(),
-                For => unimplemented!(),
-                If => unimplemented!(),
-                While => unimplemented!(),
-                Print => unimplemented!(),
-                Return => return,
-                _ => {
-                    self.advance();
-                }
+                Class | Fun | Var | For | If | While | Print | Class | Return => return,
+                _ => {}
             }
+
+            self.advance();
         }
     }
 }

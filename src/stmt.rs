@@ -12,7 +12,14 @@ pub trait StmtVisitor {
 
 #[derive(Debug)]
 pub enum Stmt {
-    Expr { expression: Box<Expr> },
-    Print { expression: Box<Expr> },
-    Var { name: Token },
+    Expr {
+        expression: Expr,
+    },
+    Print {
+        expression: Expr,
+    },
+    Var {
+        name: Token,
+        expression: Option<Expr>,
+    },
 }

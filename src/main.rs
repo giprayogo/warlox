@@ -6,6 +6,8 @@ use std::process::exit;
 use std::sync::Mutex;
 use std::{env, fs};
 
+mod environment;
+mod error;
 mod expr;
 mod interpreter;
 mod parser;

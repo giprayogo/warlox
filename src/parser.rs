@@ -71,15 +71,14 @@ impl Parser {
         Self { tokens, current: 0 }
     }
 
-    // TODO: Refactor as a standard iterator?
-    pub fn parse(&mut self) -> Result<Vec<Stmt>> {
+    pub fn parse(&mut self) -> Vec<Stmt> {
         let mut statements = Vec::new();
         while !self.is_at_end() {
             if let Some(v) = self.declaration() {
                 statements.push(v);
             }
         }
-        Ok(statements)
+        statements
     }
 
     fn declaration(&mut self) -> Option<Stmt> {
@@ -90,7 +89,8 @@ impl Parser {
         };
         match statement {
             Ok(v) => Some(v),
-            Err(_) => {
+            Err(e) => {
+                eprintln!("{e}");
                 self.synchronize();
                 None
             }

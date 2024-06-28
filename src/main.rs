@@ -68,14 +68,7 @@ fn run(source: &str) {
     let mut scanner = Scanner::new(source);
     let tokens = scanner.scan_tokens();
     let mut parser = Parser::new(tokens);
-    let statements = match parser.parse() {
-        Ok(v) => v,
-        Err(e) => {
-            eprintln!("{e}");
-            return;
-        }
-    };
-
+    let statements = parser.parse();
     let mut interpreter = Interpreter::new();
     interpreter.interpret(&statements);
 }

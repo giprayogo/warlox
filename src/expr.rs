@@ -10,6 +10,7 @@ pub trait ExprVisitor {
 }
 
 // TODO: add new() implementation? I don't like specifying Box again and again.
+// TODO: Does not need to be a box? The expression doesn't have to own the subexpressions, right?
 #[derive(Debug)]
 pub enum Expr {
     Binary {

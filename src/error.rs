@@ -1,18 +1,18 @@
 use std::error::Error;
 use std::fmt;
 
-type LineNumber = i32;
-
 #[derive(Debug)]
 pub enum RuntimeError {
     /// Unary operator taking non-number operand
-    OperandNotNumber(LineNumber),
+    OperandNotNumber(i32),
     /// Binary operator taking non-number operand
-    OperandsNotNumbers(LineNumber),
+    OperandsNotNumbers(i32),
     /// Plus operator taking non-number or string operand
-    OperandsNotNumbersOrStrings(LineNumber),
+    OperandsNotNumbersOrStrings(i32),
     /// Division by zero
-    DivideByZero(LineNumber),
+    DivideByZero(i32),
+    /// Undefined variable
+    UndefinedVariable(String, i32),
 }
 
 impl fmt::Display for RuntimeError {
@@ -32,7 +32,10 @@ impl fmt::Display for RuntimeError {
                 )
             }
             Self::DivideByZero(line_number) => {
-                write!(f, "Division by zero [line {}]", line_number)
+                write!(f, "Division by zero\n[line {}]", line_number)
+            }
+            Self::UndefinedVariable(name, line_number) => {
+                write!(f, "Undefined variable {}.\n[line {}]", name, line_number)
             }
         }
     }

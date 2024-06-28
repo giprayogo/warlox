@@ -1,9 +1,12 @@
+use crate::environment::Environment;
 use crate::error::RuntimeError;
 use crate::expr::{Expr, ExprVisitor};
 use crate::stmt::{Stmt, StmtVisitor};
 use crate::token::{Token, TokenType, Value};
 
-pub struct Interpreter;
+pub struct Interpreter {
+    environment: Environment,
+}
 
 // TODO: Directly return Value?
 /// Lox definition of "truthy" value
@@ -55,18 +58,20 @@ fn check_number_operands(
 impl Interpreter {
     // TODO: Re-consider this "visitor" pattern; it becomes weird.
     pub fn new() -> Self {
-        Self
+        Self {
+            environment: Environment::new(),
+        }
     }
 
     fn evaluate(&self, expr: &Expr) -> Result<Value, RuntimeError> {
         self.visit_expr(expr)
     }
 
-    fn execute(&self, stmt: &Stmt) -> Result<(), RuntimeError> {
+    fn execute(&mut self, stmt: &Stmt) -> Result<(), RuntimeError> {
         self.visit_stmt(stmt)
     }
 
-    pub fn interpret(&self, statements: &[Stmt]) {
+    pub fn interpret(&mut self, statements: &[Stmt]) {
         for statement in statements {
             match self.execute(statement) {
                 Ok(_) => {}
@@ -80,12 +85,21 @@ impl Interpreter {
 impl StmtVisitor for Interpreter {
     type Output = Result<(), RuntimeError>;
 
-    fn visit_stmt(&self, stmt: &Stmt) -> Self::Output {
+    fn visit_stmt(&mut self, stmt: &Stmt) -> Self::Output {
         match stmt {
             Stmt::Expr { expression } => self.evaluate(expression).map(|_| {}),
             Stmt::Print { expression } => {
                 let value = self.evaluate(expression)?;
                 println!("{value}");
+                Ok(())
+            }
+            Stmt::Var { name, initializer } => {
+                let value = if let Some(initializer) = initializer {
+                    self.evaluate(initializer)?
+                } else {
+                    Value::Null
+                };
+                self.environment.define(name.lexeme.clone(), value);
                 Ok(())
             }
         }
@@ -180,6 +194,7 @@ impl ExprVisitor for Interpreter {
                     self.evaluate(right)
                 }
             }
+            Expr::Variable { name } => self.environment.get(name),
         }
     }
 }

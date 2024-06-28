@@ -111,11 +111,8 @@ impl Parser {
         self.consume(
             TokenType::Semicolon,
             ParseErrorType::SemicolonAfterVarDeclaration,
-        );
-        Ok(Stmt::Var {
-            name,
-            expression: initializer,
-        })
+        )?;
+        Ok(Stmt::Var { name, initializer })
     }
 
     fn statement(&mut self) -> Result<Stmt> {
@@ -406,7 +403,7 @@ impl Parser {
 
             use TokenType::*;
             match self.peek().token_type {
-                Class | Fun | Var | For | If | While | Print | Class | Return => return,
+                Class | Fun | Var | For | If | While | Print | Return => return,
                 _ => {}
             }
 

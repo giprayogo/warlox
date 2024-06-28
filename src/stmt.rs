@@ -4,7 +4,7 @@ use crate::token::Token;
 pub trait StmtVisitor {
     type Output;
 
-    fn visit_stmt(&self, stmt: &Stmt) -> Self::Output {
+    fn visit_stmt(&mut self, stmt: &Stmt) -> Self::Output {
         println!("{stmt:?}");
         unimplemented!()
     }
@@ -20,6 +20,6 @@ pub enum Stmt {
     },
     Var {
         name: Token,
-        expression: Option<Expr>,
+        initializer: Option<Expr>,
     },
 }

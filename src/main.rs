@@ -76,9 +76,8 @@ fn run(source: &str) {
         }
     };
 
-    let interpreter = Interpreter::new();
+    let mut interpreter = Interpreter::new();
     interpreter.interpret(&statements);
-    // println!("{}", AstPrinter.print(&expression));
 }
 
 /// Rudimentary error reporting mechanism

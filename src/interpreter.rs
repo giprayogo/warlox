@@ -63,7 +63,7 @@ impl Interpreter {
         }
     }
 
-    fn evaluate(&self, expr: &Expr) -> Result<Value, RuntimeError> {
+    fn evaluate(&mut self, expr: &Expr) -> Result<Value, RuntimeError> {
         self.visit_expr(expr)
     }
 
@@ -109,7 +109,7 @@ impl StmtVisitor for Interpreter {
 impl ExprVisitor for Interpreter {
     type Output = Result<Value, RuntimeError>;
 
-    fn visit_expr(&self, expr: &Expr) -> Self::Output {
+    fn visit_expr(&mut self, expr: &Expr) -> Self::Output {
         match expr {
             Expr::Literal { value } => Ok(value.clone()), // TODO: Refactor to not clone.
             Expr::Grouping { expression } => self.evaluate(expression),
@@ -195,6 +195,10 @@ impl ExprVisitor for Interpreter {
                 }
             }
             Expr::Variable { name } => self.environment.get(name),
+            Expr::Assign { name, value } => {
+                let value = self.evaluate(value)?;
+                self.environment.assign(name, value)
+            }
         }
     }
 }

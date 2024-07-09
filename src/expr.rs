@@ -3,7 +3,7 @@ use crate::token::{Token, Value};
 pub trait ExprVisitor {
     type Output;
 
-    fn visit_expr(&self, expr: &Expr) -> Self::Output {
+    fn visit_expr(&mut self, expr: &Expr) -> Self::Output {
         println!("{expr:?}");
         unimplemented!()
     }
@@ -13,6 +13,10 @@ pub trait ExprVisitor {
 // TODO: Does not need to be a box? The expression doesn't have to own the subexpressions, right?
 #[derive(Debug)]
 pub enum Expr {
+    Assign {
+        name: Token,
+        value: Box<Expr>,
+    },
     Binary {
         left: Box<Expr>,
         operator: Token,

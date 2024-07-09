@@ -17,6 +17,7 @@ enum ParseErrorType {
     SemicolonAfterExpresssion,
     SemicolonAfterVarDeclaration,
     VarName,
+    InvalidAssignment,
 }
 
 #[derive(Debug, Clone)]
@@ -56,6 +57,7 @@ impl fmt::Display for ParseErrorType {
                 ParseErrorType::LeftHandOperand =>
                     "Missing binary operator left hand operand.".to_string(),
                 ParseErrorType::VarName => "Expect variable name.".to_string(),
+                ParseErrorType::InvalidAssignment => "Invalid assignment target.".to_string(),
             }
         )
     }
@@ -146,10 +148,10 @@ impl Parser {
     }
 
     fn comma(&mut self) -> Result<Expr> {
-        let mut expr = self.ternary()?;
+        let mut expr = self.assignment()?;
 
         while self.match_token_type(&[TokenType::Comma]) {
-            let right = self.ternary()?;
+            let right = self.assignment()?;
             expr = Expr::Comma {
                 left: Box::new(expr),
                 right: Box::new(right),
@@ -159,13 +161,37 @@ impl Parser {
         Ok(expr)
     }
 
+    fn assignment(&mut self) -> Result<Expr> {
+        let expr = self.ternary()?;
+
+        if self.match_token_type(&[TokenType::Equal]) {
+            let equals = self.previous().clone();
+            // Right associative
+            let value = self.assignment()?;
+
+            use Expr::*;
+            match expr {
+                Variable { name } => Ok(Expr::Assign {
+                    name,
+                    value: Box::new(value),
+                }),
+                _ => Err(ParseError {
+                    parse_error_type: ParseErrorType::InvalidAssignment,
+                    token: equals,
+                }),
+            }
+        } else {
+            Ok(expr)
+        }
+    }
+
     fn ternary(&mut self) -> Result<Expr> {
         let mut expr = self.equality()?;
 
         if self.match_token_type(&[TokenType::QuestionMark]) {
-            let left = self.ternary()?;
+            let left = self.expression()?;
             self.consume(TokenType::Colon, ParseErrorType::Colon)?;
-            let right = self.ternary()?;
+            let right = self.assignment()?;
             expr = Expr::Ternary {
                 condition: Box::new(expr),
                 left: Box::new(left),

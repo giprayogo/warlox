@@ -27,4 +27,18 @@ impl Environment {
             )),
         }
     }
+
+    // TODO: Consider consuming token?
+    pub fn assign(&mut self, name: &Token, value: Value) -> Result<Value, RuntimeError> {
+        if self.values.contains_key(&name.lexeme) {
+            self.values.insert(name.lexeme.clone(), value);
+            // * NOTE: No particular reasons for this. Can also do JS-style return value.
+            Ok(Value::Null)
+        } else {
+            Err(RuntimeError::UndefinedVariable(
+                name.lexeme.clone(),
+                name.line,
+            ))
+        }
+    }
 }

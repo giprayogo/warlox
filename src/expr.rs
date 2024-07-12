@@ -1,9 +1,12 @@
-use crate::token::{Token, Value};
+use crate::{
+    error::RuntimeError,
+    token::{Token, Value},
+};
 
 pub trait ExprVisitor {
     type Output;
 
-    fn visit_expr(&mut self, expr: &Expr) -> Self::Output {
+    fn visit_expr(&mut self, expr: &Expr) -> Result<Self::Output, RuntimeError> {
         println!("{expr:?}");
         unimplemented!()
     }

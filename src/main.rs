@@ -1,10 +1,8 @@
-use std::cmp::Ordering::{Equal, Greater, Less};
 use std::error::Error;
+use std::fs;
 use std::io::stdout;
 use std::io::{stdin, Write};
-use std::process::exit;
-use std::sync::Mutex;
-use std::{env, fs};
+use std::path::{Path, PathBuf};
 
 mod environment;
 mod error;
@@ -15,39 +13,49 @@ mod scanner;
 mod stmt;
 mod token;
 
-use interpreter::Interpreter;
+use clap::Parser as ClapParser;
+use interpreter::{AstPrinter, Interpreter, InterpreterLike};
 use parser::Parser;
 use scanner::Scanner;
 
-// TODO: Perhaps error should be its own module
-static HAD_ERROR: Mutex<bool> = Mutex::new(false);
+/// Simple Lox language interpreter.
+#[derive(ClapParser, Debug)]
+struct Cli {
+    /// Lox source file.
+    #[arg(value_name = "FILE")]
+    file: Option<PathBuf>,
+
+    /// Print AST instead of interpreting.
+    #[arg(short, long)]
+    ast: bool,
+}
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let args = env::args().skip(1).collect::<Vec<_>>();
-    match args.len().cmp(&1) {
-        Greater => {
-            println!("Usage: warlox [script]");
-            exit(64);
-        }
-        Equal => {
-            run_file(&args[0])?;
-        }
-        Less => {
-            run_prompt()?;
-        }
-    }
+    let cli = Cli::parse();
+
+    match (cli.ast, cli.file) {
+        (true, Some(file)) => run_file(AstPrinter::new(), file),
+        (true, None) => run_prompt(AstPrinter::new()),
+        (false, Some(file)) => run_file(Interpreter::new(), file),
+        (false, None) => run_prompt(Interpreter::new()),
+    }?;
+
     Ok(())
 }
 
 /// Load and interpret a Lox source code file
-fn run_file(path: &str) -> Result<(), Box<dyn Error>> {
+fn run_file<T: InterpreterLike, P: AsRef<Path>>(
+    mut interpreter: T,
+    path: P,
+) -> Result<(), Box<dyn Error>> {
+    println!("wrong! {:?}", path.as_ref());
     let string = fs::read_to_string(path)?;
-    run(&string);
+    run(&mut interpreter, &string);
     Ok(())
 }
 
 /// Run interactive prompt for the Lox interpreter
-fn run_prompt() -> Result<(), Box<dyn Error>> {
+fn run_prompt<T: InterpreterLike>(mut interpreter: T) -> Result<(), Box<dyn Error>> {
     let mut line = String::new();
     loop {
         print!("> ");
@@ -57,30 +65,17 @@ fn run_prompt() -> Result<(), Box<dyn Error>> {
             Ok(_) => (),
             Err(e) => return Err(Box::new(e)),
         };
-        run(&line);
+        run(&mut interpreter, &line);
         line.clear();
     }
     Ok(())
 }
 
 /// Token scanner loop for a single file or line (interactive)
-fn run(source: &str) {
+fn run<T: InterpreterLike>(interpreter: &mut T, source: &str) {
     let mut scanner = Scanner::new(source);
     let tokens = scanner.scan_tokens();
     let mut parser = Parser::new(tokens);
     let statements = parser.parse();
-    let mut interpreter = Interpreter::new();
     interpreter.interpret(&statements);
-}
-
-/// Rudimentary error reporting mechanism
-fn error(line: i32, message: String) {
-    report(line, "".to_string(), message);
-}
-
-/// Rudimentary error reporting mechanism (actual printing part)
-fn report(line: i32, wherein: String, message: String) {
-    eprintln!("[line {line}] Error {wherein}: {message}");
-    let mut had_error = HAD_ERROR.lock().expect("Unexpected mutex error");
-    *had_error = false;
 }

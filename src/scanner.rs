@@ -1,4 +1,3 @@
-use crate::error;
 use crate::token::{Token, TokenType, Value};
 use std::mem;
 use std::str::FromStr;
@@ -112,7 +111,10 @@ impl Scanner {
             c if c.is_ascii_digit() => self.number(),
             // TODO: Later support full unicode as identifier??
             c if c.is_ascii_alphanumeric() || c == '_' => self.identifier(),
-            _ => error(self.line, "Unexpected character.".into()),
+            // TODO: Refactor.
+            _ => {
+                eprintln!("[line {}] Error: Unexpected character.", self.line);
+            }
         }
     }
 

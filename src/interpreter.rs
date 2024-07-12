@@ -4,11 +4,19 @@ use crate::expr::{Expr, ExprVisitor};
 use crate::stmt::{Stmt, StmtVisitor};
 use crate::token::{Token, TokenType, Value};
 
+// TODO: Better name
+/// Anything that behaves like an interpreter.
+pub trait InterpreterLike {
+    fn new() -> Self;
+
+    fn interpret(&mut self, statements: &[Stmt]);
+}
+
 pub struct Interpreter {
     environment: Environment,
 }
 
-// TODO: Directly return Value?
+// TODO: Return Value::Boolean?
 /// Lox definition of "truthy" value
 fn is_truthy(literal: Value) -> bool {
     match literal {
@@ -19,7 +27,7 @@ fn is_truthy(literal: Value) -> bool {
     }
 }
 
-// TODO: Directly return Value?
+// TODO: Return Value::Boolean?
 /// Lox definition of "equal" value
 fn is_equal(a: Value, b: Value) -> bool {
     match (a, b) {
@@ -56,13 +64,7 @@ fn check_number_operands(
 }
 
 impl Interpreter {
-    // TODO: Re-consider this "visitor" pattern; it becomes weird.
-    pub fn new() -> Self {
-        Self {
-            environment: Environment::new(),
-        }
-    }
-
+    // TODO: Re-consider these "visitor" pattern; it becomes awkward.
     fn evaluate(&mut self, expr: &Expr) -> Result<Value, RuntimeError> {
         self.visit_expr(expr)
     }
@@ -70,22 +72,28 @@ impl Interpreter {
     fn execute(&mut self, stmt: &Stmt) -> Result<(), RuntimeError> {
         self.visit_stmt(stmt)
     }
+}
 
-    pub fn interpret(&mut self, statements: &[Stmt]) {
+impl InterpreterLike for Interpreter {
+    fn new() -> Self {
+        Self {
+            environment: Environment::new(),
+        }
+    }
+    fn interpret(&mut self, statements: &[Stmt]) {
         for statement in statements {
             match self.execute(statement) {
                 Ok(_) => {}
                 Err(e) => eprintln!("{e}"),
             }
-            // }.map_err(|e| eprintln!("{e}"));
         }
     }
 }
 
 impl StmtVisitor for Interpreter {
-    type Output = Result<(), RuntimeError>;
+    type Output = ();
 
-    fn visit_stmt(&mut self, stmt: &Stmt) -> Self::Output {
+    fn visit_stmt(&mut self, stmt: &Stmt) -> Result<Self::Output, RuntimeError> {
         match stmt {
             Stmt::Expr { expression } => self.evaluate(expression).map(|_| {}),
             Stmt::Print { expression } => {
@@ -107,9 +115,9 @@ impl StmtVisitor for Interpreter {
 }
 
 impl ExprVisitor for Interpreter {
-    type Output = Result<Value, RuntimeError>;
+    type Output = Value;
 
-    fn visit_expr(&mut self, expr: &Expr) -> Self::Output {
+    fn visit_expr(&mut self, expr: &Expr) -> Result<Self::Output, RuntimeError> {
         match expr {
             Expr::Literal { value } => Ok(value.clone()), // TODO: Refactor to not clone.
             Expr::Grouping { expression } => self.evaluate(expression),
@@ -198,6 +206,85 @@ impl ExprVisitor for Interpreter {
             Expr::Assign { name, value } => {
                 let value = self.evaluate(value)?;
                 self.environment.assign(name, value)
+            }
+        }
+    }
+}
+
+pub struct AstPrinter;
+
+impl AstPrinter {
+    fn parenthesize(&mut self, name: &str, exprs: &[&Expr]) -> Result<String, RuntimeError> {
+        let mut temp = Vec::new();
+        for expr in exprs {
+            let value = self.visit_expr(expr)?;
+            temp.push(value);
+        }
+        Ok(format!("({name} {})", temp.join(" ")))
+    }
+}
+
+impl InterpreterLike for AstPrinter {
+    fn new() -> Self {
+        AstPrinter {}
+    }
+
+    fn interpret(&mut self, statements: &[Stmt]) {
+        for statement in statements {
+            match self.visit_stmt(statement) {
+                Ok(v) => println!("{v}"),
+                Err(e) => eprintln!("{e}"),
+            }
+        }
+    }
+}
+
+impl StmtVisitor for AstPrinter {
+    type Output = String;
+
+    #[allow(unused)]
+    fn visit_stmt(&mut self, stmt: &Stmt) -> Result<Self::Output, RuntimeError> {
+        match stmt {
+            Stmt::Expr { expression } => self.visit_expr(expression),
+            Stmt::Print { expression } => Ok(format!("(print {})", self.visit_expr(expression)?)),
+            Stmt::Var { name, initializer } => Ok(if let Some(initializer) = initializer {
+                format!(
+                    "(declare {} {})",
+                    name.lexeme,
+                    self.visit_expr(initializer)?
+                )
+            } else {
+                format!("(declare {})", name.lexeme)
+            }),
+        }
+    }
+}
+
+impl ExprVisitor for AstPrinter {
+    type Output = String;
+
+    fn visit_expr(&mut self, expr: &Expr) -> Result<Self::Output, RuntimeError> {
+        match expr {
+            Expr::Binary {
+                left,
+                operator,
+                right,
+            } => self.parenthesize(&operator.lexeme, &[left, right]),
+            Expr::Grouping { expression } => self.parenthesize("group", &[expression]),
+            Expr::Literal { value } => Ok(match value {
+                Value::Null => "nil".to_string(),
+                v => format!("{v}"),
+            }),
+            Expr::Unary { operator, right } => self.parenthesize(&operator.lexeme, &[right]),
+            Expr::Comma { left, right } => self.parenthesize(",", &[left, right]),
+            Expr::Ternary {
+                condition,
+                left,
+                right,
+            } => self.parenthesize("?", &[condition, left, right]),
+            Expr::Variable { name } => Ok(format!("(var {})", name.lexeme)),
+            Expr::Assign { name, value } => {
+                self.parenthesize(&format!("assign {}", name.lexeme), &[value])
             }
         }
     }

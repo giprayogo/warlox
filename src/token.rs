@@ -31,7 +31,7 @@ impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{:?}{}, ln {} \"{}\"",
+            "{:?} {}, ln {} \"{}\"",
             self.token_type,
             match &self.literal {
                 Value::Null => "nil".into(),

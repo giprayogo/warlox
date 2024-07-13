@@ -19,7 +19,7 @@ pub enum Stmt {
     Print {
         expression: Expr,
     },
-    Var {
+    VarDecl {
         name: Token,
         initializer: Option<Expr>,
     },

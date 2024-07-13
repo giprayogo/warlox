@@ -101,7 +101,7 @@ impl StmtVisitor for Interpreter {
                 println!("{value}");
                 Ok(())
             }
-            Stmt::Var { name, initializer } => {
+            Stmt::VarDecl { name, initializer } => {
                 let value = if let Some(initializer) = initializer {
                     self.evaluate(initializer)?
                 } else {
@@ -247,7 +247,7 @@ impl StmtVisitor for AstPrinter {
         match stmt {
             Stmt::Expr { expression } => self.visit_expr(expression),
             Stmt::Print { expression } => Ok(format!("(print {})", self.visit_expr(expression)?)),
-            Stmt::Var { name, initializer } => Ok(if let Some(initializer) = initializer {
+            Stmt::VarDecl { name, initializer } => Ok(if let Some(initializer) = initializer {
                 format!(
                     "(declare {} {})",
                     name.lexeme,

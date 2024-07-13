@@ -10,13 +10,13 @@ type Result<T> = std::result::Result<T, ParseError>;
 
 #[derive(Debug, Clone, Copy)]
 enum ParseErrorType {
-    Colon,
-    Expression,
-    RightParen,
-    LeftHandOperand,
-    SemicolonAfterExpresssion,
-    SemicolonAfterVarDeclaration,
-    VarName,
+    ExpectColon,
+    ExpectExpression,
+    ExpectRightParen,
+    MissingLeftHandOperand,
+    ExpectSemicolonAfterExpresssion,
+    ExpectSemicolonAfterVarDeclaration,
+    ExpectVarName,
     InvalidAssignment,
 }
 
@@ -47,16 +47,16 @@ impl fmt::Display for ParseErrorType {
             "{}",
             // TODO: Review variants; kinda repetitive.
             match self {
-                ParseErrorType::Colon => "Expect ':' after expression.".to_string(),
-                ParseErrorType::SemicolonAfterExpresssion =>
+                ParseErrorType::ExpectColon => "Expect ':' after expression.".to_string(),
+                ParseErrorType::ExpectSemicolonAfterExpresssion =>
                     "Expect ';' after expression.".to_string(),
-                ParseErrorType::SemicolonAfterVarDeclaration =>
+                ParseErrorType::ExpectSemicolonAfterVarDeclaration =>
                     "Expect ';' after variable declaration.".to_string(),
-                ParseErrorType::Expression => "Expect expression.".to_string(),
-                ParseErrorType::RightParen => "Expect ')' after expression.".to_string(),
-                ParseErrorType::LeftHandOperand =>
+                ParseErrorType::ExpectExpression => "Expect expression.".to_string(),
+                ParseErrorType::ExpectRightParen => "Expect ')' after expression.".to_string(),
+                ParseErrorType::MissingLeftHandOperand =>
                     "Missing binary operator left hand operand.".to_string(),
-                ParseErrorType::VarName => "Expect variable name.".to_string(),
+                ParseErrorType::ExpectVarName => "Expect variable name.".to_string(),
                 ParseErrorType::InvalidAssignment => "Invalid assignment target.".to_string(),
             }
         )
@@ -101,7 +101,7 @@ impl Parser {
 
     fn var_declaration(&mut self) -> Result<Stmt> {
         let name = self
-            .consume(TokenType::Identifier, ParseErrorType::VarName)?
+            .consume(TokenType::Identifier, ParseErrorType::ExpectVarName)?
             .clone();
 
         let initializer = if self.match_token_type(&[TokenType::Equal]) {
@@ -112,9 +112,9 @@ impl Parser {
 
         self.consume(
             TokenType::Semicolon,
-            ParseErrorType::SemicolonAfterVarDeclaration,
+            ParseErrorType::ExpectSemicolonAfterVarDeclaration,
         )?;
-        Ok(Stmt::Var { name, initializer })
+        Ok(Stmt::VarDecl { name, initializer })
     }
 
     fn statement(&mut self) -> Result<Stmt> {
@@ -129,7 +129,7 @@ impl Parser {
         let value = self.expression()?;
         self.consume(
             TokenType::Semicolon,
-            ParseErrorType::SemicolonAfterExpresssion,
+            ParseErrorType::ExpectSemicolonAfterExpresssion,
         )?;
         Ok(Stmt::Print { expression: value })
     }
@@ -138,7 +138,7 @@ impl Parser {
         let expr = self.expression()?;
         self.consume(
             TokenType::Semicolon,
-            ParseErrorType::SemicolonAfterExpresssion,
+            ParseErrorType::ExpectSemicolonAfterExpresssion,
         )?;
         Ok(Stmt::Expr { expression: expr })
     }
@@ -190,7 +190,7 @@ impl Parser {
 
         if self.match_token_type(&[TokenType::QuestionMark]) {
             let left = self.expression()?;
-            self.consume(TokenType::Colon, ParseErrorType::Colon)?;
+            self.consume(TokenType::Colon, ParseErrorType::ExpectColon)?;
             let right = self.assignment()?;
             expr = Expr::Ternary {
                 condition: Box::new(expr),
@@ -203,18 +203,10 @@ impl Parser {
     }
 
     fn equality(&mut self) -> Result<Expr> {
-        let equality_tokens = [TokenType::BangEqual, TokenType::EqualEqual];
-        if self.match_token_type(&equality_tokens) {
-            self.comparison()?;
-            return Err(ParseError {
-                parse_error_type: ParseErrorType::LeftHandOperand,
-                token: self.peek().clone(),
-            });
-        }
-
         let mut expr = self.comparison()?;
 
-        while self.match_token_type(&equality_tokens) {
+        use TokenType::*;
+        while self.match_token_type(&[BangEqual, EqualEqual]) {
             let operator = self.previous().clone();
             let right = self.comparison()?;
             expr = Expr::Binary {
@@ -228,23 +220,10 @@ impl Parser {
     }
 
     fn comparison(&mut self) -> Result<Expr> {
-        let token_types = [
-            TokenType::Greater,
-            TokenType::GreaterEqual,
-            TokenType::Less,
-            TokenType::LessEqual,
-        ];
-        if self.match_token_type(&token_types) {
-            self.comparison()?;
-            return Err(ParseError {
-                parse_error_type: ParseErrorType::LeftHandOperand,
-                token: self.peek().clone(),
-            });
-        }
-
         let mut expr = self.term()?;
 
-        while self.match_token_type(&token_types) {
+        use TokenType::*;
+        while self.match_token_type(&[Greater, GreaterEqual, Less, LessEqual]) {
             let operator = self.previous().clone();
             let right = self.term()?;
             expr = Expr::Binary {
@@ -258,18 +237,10 @@ impl Parser {
     }
 
     fn term(&mut self) -> Result<Expr> {
-        let token_types = [TokenType::Minus, TokenType::Plus];
-        if self.match_token_type(&token_types) {
-            self.comparison()?;
-            return Err(ParseError {
-                parse_error_type: ParseErrorType::LeftHandOperand,
-                token: self.peek().clone(),
-            });
-        }
-
         let mut expr = self.factor()?;
 
-        while self.match_token_type(&token_types) {
+        use TokenType::*;
+        while self.match_token_type(&[Minus, Plus]) {
             let operator = self.previous().clone();
             let right = self.factor()?;
             expr = Expr::Binary {
@@ -283,18 +254,10 @@ impl Parser {
     }
 
     fn factor(&mut self) -> Result<Expr> {
-        let token_types = [TokenType::Slash, TokenType::Star];
-        if self.match_token_type(&token_types) {
-            self.comparison()?;
-            return Err(ParseError {
-                parse_error_type: ParseErrorType::LeftHandOperand,
-                token: self.peek().clone(),
-            });
-        }
-
         let mut expr = self.unary()?;
 
-        while self.match_token_type(&token_types) {
+        use TokenType::*;
+        while self.match_token_type(&[Slash, Star]) {
             let operator = self.previous().clone();
             let right = self.unary()?;
             expr = Expr::Binary {
@@ -343,13 +306,34 @@ impl Parser {
         } else if self.match_token_type(&[LeftParen]) {
             let expr = self.expression()?;
             // TODO: I don't like how this is written
-            self.consume(RightParen, ParseErrorType::RightParen)?;
+            self.consume(RightParen, ParseErrorType::ExpectRightParen)?;
             Ok(Expr::Grouping {
                 expression: Box::new(expr),
             })
+        } else if self.match_token_type(&[
+            Bang,
+            Minus,
+            Slash,
+            Star,
+            Minus,
+            Plus,
+            Greater,
+            GreaterEqual,
+            Less,
+            LessEqual,
+            BangEqual,
+            EqualEqual,
+        ]) {
+            let operator = self.previous().clone();
+            // Continue parsing right hand side.
+            self.equality()?;
+            Err(ParseError {
+                parse_error_type: ParseErrorType::MissingLeftHandOperand,
+                token: operator,
+            })
         } else {
             Err(ParseError {
-                parse_error_type: ParseErrorType::Expression,
+                parse_error_type: ParseErrorType::ExpectExpression,
                 token: self.peek().clone(),
             })
         }

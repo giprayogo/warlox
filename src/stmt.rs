@@ -13,7 +13,10 @@ pub trait StmtVisitor {
 
 #[derive(Debug)]
 pub enum Stmt {
-    Expr {
+    Block {
+        statements: Vec<Stmt>,
+    },
+    Expression {
         expression: Expr,
     },
     Print {

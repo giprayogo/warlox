@@ -3,8 +3,11 @@ use crate::error::RuntimeError;
 use crate::expr::{Expr, ExprVisitor};
 use crate::stmt::{Stmt, StmtVisitor};
 use crate::token::{Token, TokenType, Value};
+use std::cell::RefCell;
+use std::mem;
+use std::rc::Rc;
 
-// TODO: Better name
+// TODO: Better name and definition.
 /// Anything that behaves like an interpreter.
 pub trait InterpreterLike {
     fn new() -> Self;
@@ -13,7 +16,8 @@ pub trait InterpreterLike {
 }
 
 pub struct Interpreter {
-    environment: Environment,
+    // environment: Environment,
+    environment: Rc<RefCell<Environment>>,
 }
 
 // TODO: Return Value::Boolean?
@@ -72,12 +76,34 @@ impl Interpreter {
     fn execute(&mut self, stmt: &Stmt) -> Result<(), RuntimeError> {
         self.visit_stmt(stmt)
     }
+
+    fn execute_block(
+        &mut self,
+        statements: &[Stmt],
+        environment: Environment,
+    ) -> Result<(), RuntimeError> {
+        // * NOTE: My translation of the book's construct; Java has no lifetime.
+        let mut temp = Rc::new(RefCell::new(environment));
+        mem::swap(&mut self.environment, &mut temp);
+        for statement in statements {
+            match self.execute(statement) {
+                Ok(_) => {}
+                Err(e) => {
+                    mem::swap(&mut self.environment, &mut temp);
+                    return Err(e);
+                }
+            };
+        }
+        mem::swap(&mut self.environment, &mut temp);
+        Ok(())
+    }
 }
 
 impl InterpreterLike for Interpreter {
     fn new() -> Self {
         Self {
-            environment: Environment::new(),
+            // environment: Environment::new(None),
+            environment: Rc::new(RefCell::new(Environment::new(None))),
         }
     }
     fn interpret(&mut self, statements: &[Stmt]) {
@@ -95,7 +121,7 @@ impl StmtVisitor for Interpreter {
 
     fn visit_stmt(&mut self, stmt: &Stmt) -> Result<Self::Output, RuntimeError> {
         match stmt {
-            Stmt::Expr { expression } => self.evaluate(expression).map(|_| {}),
+            Stmt::Expression { expression } => self.evaluate(expression).map(|_| {}),
             Stmt::Print { expression } => {
                 let value = self.evaluate(expression)?;
                 println!("{value}");
@@ -107,7 +133,13 @@ impl StmtVisitor for Interpreter {
                 } else {
                     Value::Null
                 };
-                self.environment.define(name.lexeme.clone(), value);
+                self.environment
+                    .borrow_mut()
+                    .define(name.lexeme.clone(), value);
+                Ok(())
+            }
+            Stmt::Block { statements } => {
+                self.execute_block(statements, Environment::new(Some(self.environment.clone())))?;
                 Ok(())
             }
         }
@@ -202,10 +234,10 @@ impl ExprVisitor for Interpreter {
                     self.evaluate(right)
                 }
             }
-            Expr::Variable { name } => self.environment.get(name),
+            Expr::Variable { name } => self.environment.borrow().get(name),
             Expr::Assign { name, value } => {
                 let value = self.evaluate(value)?;
-                self.environment.assign(name, value)
+                self.environment.borrow_mut().assign(name, value)
             }
         }
     }
@@ -245,7 +277,7 @@ impl StmtVisitor for AstPrinter {
     #[allow(unused)]
     fn visit_stmt(&mut self, stmt: &Stmt) -> Result<Self::Output, RuntimeError> {
         match stmt {
-            Stmt::Expr { expression } => self.visit_expr(expression),
+            Stmt::Expression { expression } => self.visit_expr(expression),
             Stmt::Print { expression } => Ok(format!("(print {})", self.visit_expr(expression)?)),
             Stmt::VarDecl { name, initializer } => Ok(if let Some(initializer) = initializer {
                 format!(
@@ -256,6 +288,13 @@ impl StmtVisitor for AstPrinter {
             } else {
                 format!("(declare {})", name.lexeme)
             }),
+            Stmt::Block { statements } => {
+                let mut strings = Vec::new();
+                for stmt in statements {
+                    strings.push(self.visit_stmt(stmt)?);
+                }
+                Ok(strings.join("\n"))
+            }
         }
     }
 }

@@ -18,6 +18,7 @@ enum ParseErrorType {
     ExpectSemicolonAfterVarDeclaration,
     ExpectVarName,
     InvalidAssignment,
+    ExpectRightBraceAfterBlock,
 }
 
 #[derive(Debug, Clone)]
@@ -58,6 +59,7 @@ impl fmt::Display for ParseErrorType {
                     "Missing binary operator left hand operand.".to_string(),
                 ParseErrorType::ExpectVarName => "Expect variable name.".to_string(),
                 ParseErrorType::InvalidAssignment => "Invalid assignment target.".to_string(),
+                ParseErrorType::ExpectRightBraceAfterBlock => "Expect '}' after block.".to_string(),
             }
         )
     }
@@ -92,6 +94,8 @@ impl Parser {
         match statement {
             Ok(v) => Some(v),
             Err(e) => {
+                // Not at parse(), to allow block continue with invalid statements?
+                // For what purpose though?
                 eprintln!("{e}");
                 self.synchronize();
                 None
@@ -120,9 +124,25 @@ impl Parser {
     fn statement(&mut self) -> Result<Stmt> {
         if self.match_token_type(&[TokenType::Print]) {
             self.print_statement()
+        } else if self.match_token_type(&[TokenType::LeftBrace]) {
+            self.block()
         } else {
             self.expression_statement()
         }
+    }
+
+    fn block(&mut self) -> Result<Stmt> {
+        let mut statements = Vec::new();
+
+        use TokenType::*;
+        while !self.check(&RightBrace) && !self.is_at_end() {
+            if let Some(statement) = self.declaration() {
+                statements.push(statement);
+            }
+        }
+
+        self.consume(RightBrace, ParseErrorType::ExpectRightBraceAfterBlock)?;
+        Ok(Stmt::Block { statements })
     }
 
     fn print_statement(&mut self) -> Result<Stmt> {
@@ -140,7 +160,7 @@ impl Parser {
             TokenType::Semicolon,
             ParseErrorType::ExpectSemicolonAfterExpresssion,
         )?;
-        Ok(Stmt::Expr { expression: expr })
+        Ok(Stmt::Expression { expression: expr })
     }
 
     fn expression(&mut self) -> Result<Expr> {

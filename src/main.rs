@@ -48,7 +48,6 @@ fn run_file<T: InterpreterLike, P: AsRef<Path>>(
     mut interpreter: T,
     path: P,
 ) -> Result<(), Box<dyn Error>> {
-    println!("wrong! {:?}", path.as_ref());
     let string = fs::read_to_string(path)?;
     run(&mut interpreter, &string);
     Ok(())

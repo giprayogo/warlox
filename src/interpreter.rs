@@ -142,6 +142,18 @@ impl StmtVisitor for Interpreter {
                 self.execute_block(statements, Environment::new(Some(self.environment.clone())))?;
                 Ok(())
             }
+            Stmt::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                if is_truthy(self.evaluate(condition)?) {
+                    self.execute(then_branch)?;
+                } else if let Some(else_branch) = else_branch {
+                    self.execute(else_branch)?;
+                }
+                Ok(())
+            }
         }
     }
 }
@@ -298,6 +310,23 @@ impl StmtVisitor for AstPrinter {
                     strings.push(self.visit_stmt(stmt)?);
                 }
                 Ok(strings.join("\n"))
+            }
+            Stmt::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                let condition = self.visit_expr(condition)?;
+                let then_branch = self.visit_stmt(then_branch)?;
+                if let Some(else_branch) = else_branch {
+                    let else_branch = self.visit_stmt(else_branch)?;
+                    Ok(format!(
+                        "(if {} then {} else {})",
+                        condition, then_branch, else_branch
+                    ))
+                } else {
+                    Ok(format!("(if {} then {})", condition, then_branch))
+                }
             }
         }
     }

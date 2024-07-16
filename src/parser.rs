@@ -19,6 +19,8 @@ enum ParseErrorType {
     ExpectVarName,
     InvalidAssignment,
     ExpectRightBraceAfterBlock,
+    ExpectLeftParenAfterIf,
+    ExpectRightParenAfterIfCondition,
 }
 
 #[derive(Debug, Clone)]
@@ -43,23 +45,24 @@ impl fmt::Display for ParseError {
 
 impl fmt::Display for ParseErrorType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use ParseErrorType::*;
         write!(
             f,
             "{}",
             // TODO: Review variants; kinda repetitive.
             match self {
-                ParseErrorType::ExpectColon => "Expect ':' after expression.".to_string(),
-                ParseErrorType::ExpectSemicolonAfterExpresssion =>
-                    "Expect ';' after expression.".to_string(),
-                ParseErrorType::ExpectSemicolonAfterVarDeclaration =>
+                ExpectColon => "Expect ':' after expression.".to_string(),
+                ExpectSemicolonAfterExpresssion => "Expect ';' after expression.".to_string(),
+                ExpectSemicolonAfterVarDeclaration =>
                     "Expect ';' after variable declaration.".to_string(),
-                ParseErrorType::ExpectExpression => "Expect expression.".to_string(),
-                ParseErrorType::ExpectRightParen => "Expect ')' after expression.".to_string(),
-                ParseErrorType::MissingLeftHandOperand =>
-                    "Missing binary operator left hand operand.".to_string(),
-                ParseErrorType::ExpectVarName => "Expect variable name.".to_string(),
-                ParseErrorType::InvalidAssignment => "Invalid assignment target.".to_string(),
-                ParseErrorType::ExpectRightBraceAfterBlock => "Expect '}' after block.".to_string(),
+                ExpectExpression => "Expect expression.".to_string(),
+                ExpectRightParen => "Expect ')' after expression.".to_string(),
+                MissingLeftHandOperand => "Missing binary operator left hand operand.".to_string(),
+                ExpectVarName => "Expect variable name.".to_string(),
+                InvalidAssignment => "Invalid assignment target.".to_string(),
+                ExpectRightBraceAfterBlock => "Expect '}' after block.".to_string(),
+                ExpectLeftParenAfterIf => "Expect '(' after if.".to_string(),
+                ExpectRightParenAfterIfCondition => "Expect ')' after if condition.".to_string(),
             }
         )
     }
@@ -123,9 +126,12 @@ impl Parser {
     }
 
     fn statement(&mut self) -> Result<Stmt> {
-        if self.match_token_type(&[TokenType::Print]) {
+        use TokenType::*;
+        if self.match_token_type(&[If]) {
+            self.if_statement()
+        } else if self.match_token_type(&[Print]) {
             self.print_statement()
-        } else if self.match_token_type(&[TokenType::LeftBrace]) {
+        } else if self.match_token_type(&[LeftBrace]) {
             self.block()
         } else {
             self.expression_statement()
@@ -144,6 +150,26 @@ impl Parser {
 
         self.consume(RightBrace, ParseErrorType::ExpectRightBraceAfterBlock)?;
         Ok(Stmt::Block { statements })
+    }
+
+    fn if_statement(&mut self) -> Result<Stmt> {
+        use TokenType::*;
+        self.consume(LeftParen, ParseErrorType::ExpectLeftParenAfterIf)?;
+        let expr = self.expression()?;
+        self.consume(RightParen, ParseErrorType::ExpectRightParenAfterIfCondition)?;
+
+        let then_branch = self.statement()?;
+        let else_branch = if self.match_token_type(&[Else]) {
+            Some(Box::new(self.statement()?))
+        } else {
+            None
+        };
+
+        Ok(Stmt::If {
+            condition: expr,
+            then_branch: Box::new(then_branch),
+            else_branch,
+        })
     }
 
     fn print_statement(&mut self) -> Result<Stmt> {

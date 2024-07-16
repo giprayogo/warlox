@@ -15,7 +15,8 @@ See [StackOverflow](https://stackoverflow.com/a/13515505).
 program     = declaration* EOF
 declaration = varDecl | statement
 varDecl     = "var" IDENTIFIER ( "=" expression )? ";"
-statement   = exprStmt | printStmt | block
+statement   = exprStmt | ifStmt | printStmt | block
+ifStmt      = "if" "(" expression ")" statement ( "else" statement )?
 block       = "{" declaration* "}"
 exprStmt    = expression
 printStmt   = "print" expression

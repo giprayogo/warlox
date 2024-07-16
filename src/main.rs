@@ -57,7 +57,7 @@ fn run_file<T: InterpreterLike, P: AsRef<Path>>(
 fn run_prompt<T: InterpreterLike>(mut interpreter: T) -> Result<(), Box<dyn Error>> {
     let mut line = String::new();
     loop {
-        print!("> ");
+        print!("lox> ");
         stdout().flush()?;
         match stdin().read_line(&mut line) {
             Ok(0) => break,

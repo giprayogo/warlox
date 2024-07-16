@@ -231,6 +231,30 @@ impl ExprVisitor for Interpreter {
                     _ => unreachable!(), // TODO: Can this be expressed by the type instead?
                 }
             }
+            Expr::Logical {
+                left,
+                operator,
+                right,
+            } => {
+                let left = self.evaluate(left)?;
+
+                // TODO: cleanup; also in Rust case just using Expr::Binary seems fine...
+                match operator.token_type {
+                    TokenType::Or => {
+                        if is_truthy(left.clone()) {
+                            return Ok(left);
+                        }
+                        self.evaluate(right)
+                    }
+                    TokenType::And => {
+                        if !is_truthy(left.clone()) {
+                            return Ok(left);
+                        }
+                        self.evaluate(right)
+                    }
+                    _ => unimplemented!(), // TODO: Can this be expressed by the type instead?
+                }
+            }
             Expr::Comma { left, right } => {
                 self.evaluate(left)?;
                 self.evaluate(right)
@@ -338,6 +362,11 @@ impl ExprVisitor for AstPrinter {
     fn visit_expr(&mut self, expr: &Expr) -> Result<Self::Output, RuntimeError> {
         match expr {
             Expr::Binary {
+                left,
+                operator,
+                right,
+            } => self.parenthesize(&operator.lexeme, &[left, right]),
+            Expr::Logical {
                 left,
                 operator,
                 right,

@@ -6,6 +6,7 @@ use crate::{
     token::{Token, TokenType, Value},
 };
 
+// TODO: Revise to something simpler.
 type Result<T> = std::result::Result<T, ParseError>;
 
 #[derive(Debug, Clone, Copy)]
@@ -214,7 +215,7 @@ impl Parser {
         if self.match_token_type(&[TokenType::Equal]) {
             let equals = self.previous().clone();
             // Right associative
-            let value = self.assignment()?;
+            let value = self.ternary()?;
 
             use Expr::*;
             match expr {
@@ -233,16 +234,48 @@ impl Parser {
     }
 
     fn ternary(&mut self) -> Result<Expr> {
-        let mut expr = self.equality()?;
+        let mut expr = self.or()?;
 
         if self.match_token_type(&[TokenType::QuestionMark]) {
             let left = self.expression()?;
             self.consume(TokenType::Colon, ParseErrorType::ExpectColon)?;
-            let right = self.assignment()?;
+            let right = self.ternary()?;
             expr = Expr::Ternary {
                 condition: Box::new(expr),
                 left: Box::new(left),
                 right: Box::new(right),
+            }
+        }
+
+        Ok(expr)
+    }
+
+    fn or(&mut self) -> Result<Expr> {
+        let mut expr = self.and()?;
+
+        while self.match_token_type(&[TokenType::Or]) {
+            let operator = self.previous().clone();
+            let right = Box::new(self.and()?);
+            expr = Expr::Logical {
+                left: Box::new(expr),
+                operator,
+                right,
+            }
+        }
+
+        Ok(expr)
+    }
+
+    fn and(&mut self) -> Result<Expr> {
+        let mut expr = self.equality()?;
+
+        while self.match_token_type(&[TokenType::And]) {
+            let operator = self.previous().clone();
+            let right = Box::new(self.equality()?);
+            expr = Expr::Logical {
+                left: Box::new(expr),
+                operator,
+                right,
             }
         }
 

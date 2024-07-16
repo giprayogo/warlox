@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 pub struct Environment {
     enclosing: Option<Rc<RefCell<Environment>>>,
-    values: HashMap<String, Value>,
+    values: HashMap<String, Option<Value>>,
 }
 
 impl Environment {
@@ -18,20 +18,30 @@ impl Environment {
         }
     }
 
-    pub fn define(&mut self, name: String, value: Value) {
+    pub fn define(&mut self, name: String, value: Option<Value>) {
         self.values.insert(name, value);
     }
 
-    pub fn get(&self, name: &Token) -> Result<Value, RuntimeError> {
-        match self.values.get(&name.lexeme) {
-            Some(v) => Ok(v.clone()),
+    pub fn get(&self, token: &Token) -> Result<Value, RuntimeError> {
+        match self.values.get(&token.lexeme) {
+            Some(v) => {
+                // Challenge 8.2: don't allow use of uninitialized variable.
+                if let Some(v) = v {
+                    Ok(v.clone())
+                } else {
+                    Err(RuntimeError::UninitializedVariable(
+                        token.lexeme.clone(),
+                        token.line,
+                    ))
+                }
+            }
             None => {
                 if let Some(enclosing) = &self.enclosing {
-                    enclosing.borrow().get(name)
+                    enclosing.borrow().get(token)
                 } else {
                     Err(RuntimeError::UndefinedVariable(
-                        name.lexeme.clone(),
-                        name.line,
+                        token.lexeme.clone(),
+                        token.line,
                     ))
                 }
             }
@@ -39,11 +49,11 @@ impl Environment {
     }
 
     // TODO: Consider consuming token?
-    pub fn assign(&mut self, name: &Token, value: Value) -> Result<Value, RuntimeError> {
+    pub fn assign(&mut self, name: &Token, value: Option<Value>) -> Result<(), RuntimeError> {
         if self.values.contains_key(&name.lexeme) {
             self.values.insert(name.lexeme.clone(), value);
             // * NOTE: No particular reasons for this. Can also do JS-style return value.
-            Ok(Value::Null)
+            Ok(())
         } else if let Some(enclosing) = &mut self.enclosing {
             enclosing.borrow_mut().assign(name, value)
         } else {

@@ -36,7 +36,7 @@ pub enum Expr {
         right: Box<Expr>,
     },
     Variable {
-        name: Token,
+        token: Token,
     },
     Comma {
         left: Box<Expr>,

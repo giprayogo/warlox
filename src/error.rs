@@ -11,8 +11,10 @@ pub enum RuntimeError {
     OperandsNotNumbersOrStrings(i32),
     /// Division by zero
     DivideByZero(i32),
-    /// Undefined variable
+    /// Variable is not defined
     UndefinedVariable(String, i32),
+    /// Variable is not initialized
+    UninitializedVariable(String, i32),
 }
 
 impl fmt::Display for RuntimeError {
@@ -36,6 +38,12 @@ impl fmt::Display for RuntimeError {
             }
             Self::UndefinedVariable(name, line_number) => {
                 write!(f, "Undefined variable {}.\n[line {}]", name, line_number)
+            }
+            Self::UninitializedVariable(name, line_number) => {
+                write!(
+                    f,
+                    "Variable {name} has not been initialized.\n[line {line_number}]`"
+                )
             }
         }
     }

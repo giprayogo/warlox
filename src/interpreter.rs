@@ -129,9 +129,9 @@ impl StmtVisitor for Interpreter {
             }
             Stmt::VarDecl { name, initializer } => {
                 let value = if let Some(initializer) = initializer {
-                    self.evaluate(initializer)?
+                    Some(self.evaluate(initializer)?)
                 } else {
-                    Value::Null
+                    None
                 };
                 self.environment
                     .borrow_mut()
@@ -234,10 +234,14 @@ impl ExprVisitor for Interpreter {
                     self.evaluate(right)
                 }
             }
-            Expr::Variable { name } => self.environment.borrow().get(name),
+            Expr::Variable { token } => self.environment.borrow().get(token),
             Expr::Assign { name, value } => {
                 let value = self.evaluate(value)?;
-                self.environment.borrow_mut().assign(name, value)
+                self.environment
+                    .borrow_mut()
+                    .assign(name, Some(value.clone()))?;
+                // JS-esque return of assigned expression value.
+                Ok(value)
             }
         }
     }
@@ -321,7 +325,7 @@ impl ExprVisitor for AstPrinter {
                 left,
                 right,
             } => self.parenthesize("?", &[condition, left, right]),
-            Expr::Variable { name } => Ok(format!("(var {})", name.lexeme)),
+            Expr::Variable { token: name } => Ok(format!("(var {})", name.lexeme)),
             Expr::Assign { name, value } => {
                 self.parenthesize(&format!("assign {}", name.lexeme), &[value])
             }

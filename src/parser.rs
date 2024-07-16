@@ -91,6 +91,7 @@ impl Parser {
         } else {
             self.statement()
         };
+        // TODO: Personally I'd rather not catch this within the parser; throw to main?
         match statement {
             Ok(v) => Some(v),
             Err(e) => {
@@ -191,7 +192,7 @@ impl Parser {
 
             use Expr::*;
             match expr {
-                Variable { name } => Ok(Expr::Assign {
+                Variable { token: name } => Ok(Expr::Assign {
                     name,
                     value: Box::new(value),
                 }),
@@ -321,7 +322,7 @@ impl Parser {
             })
         } else if self.match_token_type(&[Identifier]) {
             Ok(Expr::Variable {
-                name: self.previous().clone(),
+                token: self.previous().clone(),
             })
         } else if self.match_token_type(&[LeftParen]) {
             let expr = self.expression()?;

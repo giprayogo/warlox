@@ -22,6 +22,8 @@ enum ParseErrorType {
     ExpectRightBraceAfterBlock,
     ExpectLeftParenAfterIf,
     ExpectRightParenAfterIfCondition,
+    ExpectLeftParenAfterWhile,
+    ExpectRightParenAfterCondition,
 }
 
 #[derive(Debug, Clone)]
@@ -64,6 +66,8 @@ impl fmt::Display for ParseErrorType {
                 ExpectRightBraceAfterBlock => "Expect '}' after block.".to_string(),
                 ExpectLeftParenAfterIf => "Expect '(' after if.".to_string(),
                 ExpectRightParenAfterIfCondition => "Expect ')' after if condition.".to_string(),
+                ExpectLeftParenAfterWhile => "Expect '(' after while.".to_string(),
+                ExpectRightParenAfterCondition => "Expect ')' after condition.".to_string(),
             }
         )
     }
@@ -126,12 +130,28 @@ impl Parser {
         Ok(Stmt::VarDecl { name, initializer })
     }
 
+    fn while_statement(&mut self) -> Result<Stmt> {
+        self.consume(
+            TokenType::LeftParen,
+            ParseErrorType::ExpectLeftParenAfterWhile,
+        )?;
+        let condition = self.expression()?;
+        self.consume(
+            TokenType::RightParen,
+            ParseErrorType::ExpectRightParenAfterCondition,
+        )?;
+        let body = Box::new(self.statement()?);
+        Ok(Stmt::While { condition, body })
+    }
+
     fn statement(&mut self) -> Result<Stmt> {
         use TokenType::*;
         if self.match_token_type(&[If]) {
             self.if_statement()
         } else if self.match_token_type(&[Print]) {
             self.print_statement()
+        } else if self.match_token_type(&[While]) {
+            self.while_statement()
         } else if self.match_token_type(&[LeftBrace]) {
             self.block()
         } else {

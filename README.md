@@ -17,8 +17,9 @@ and [The Syntax of C in Backus-Naur form](https://cs.wmich.edu/~gupta/teaching/c
 program     ::= declaration* EOF
 declaration ::= varDecl | statement
 varDecl     ::= "var" IDENTIFIER ( "=" expression )? ";"
-statement   ::= exprStmt | ifStmt | printStmt | block
+statement   ::= exprStmt | ifStmt | printStmt | whileStmt | block
 ifStmt      ::= "if" "(" expression ")" statement ( "else" statement )?
+whileStmt   ::= "while" "(" expression ")" statement
 block       ::= "{" declaration* "}"
 exprStmt    ::= expression
 printStmt   ::= "print" expression

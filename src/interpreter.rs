@@ -83,6 +83,7 @@ impl Interpreter {
         environment: Environment,
     ) -> Result<(), RuntimeError> {
         // * NOTE: My translation of the book's construct; Java has no lifetime.
+        // TODO: I can use temporary ownership of environment by sub-environment!
         let mut temp = Rc::new(RefCell::new(environment));
         mem::swap(&mut self.environment, &mut temp);
         for statement in statements {
@@ -151,6 +152,12 @@ impl StmtVisitor for Interpreter {
                     self.execute(then_branch)?;
                 } else if let Some(else_branch) = else_branch {
                     self.execute(else_branch)?;
+                }
+                Ok(())
+            }
+            Stmt::While { condition, body } => {
+                while is_truthy(self.evaluate(condition)?) {
+                    self.execute(body)?;
                 }
                 Ok(())
             }
@@ -352,6 +359,11 @@ impl StmtVisitor for AstPrinter {
                     Ok(format!("(if {} then {})", condition, then_branch))
                 }
             }
+            Stmt::While { condition, body } => Ok(format!(
+                "(while {} {})",
+                self.visit_expr(condition)?,
+                self.visit_stmt(body)?
+            )),
         }
     }
 }

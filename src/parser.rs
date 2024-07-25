@@ -24,6 +24,9 @@ enum ParseErrorType {
     ExpectRightParenAfterIfCondition,
     ExpectLeftParenAfterWhile,
     ExpectRightParenAfterCondition,
+    ExpectLeftParenAfterFor,
+    ExpectSemicolonAfterLoopCondition,
+    ExpectRightParenAfterForClauses,
 }
 
 #[derive(Debug, Clone)]
@@ -68,6 +71,9 @@ impl fmt::Display for ParseErrorType {
                 ExpectRightParenAfterIfCondition => "Expect ')' after if condition.".to_string(),
                 ExpectLeftParenAfterWhile => "Expect '(' after while.".to_string(),
                 ExpectRightParenAfterCondition => "Expect ')' after condition.".to_string(),
+                ExpectLeftParenAfterFor => "Expect '(' after for.".to_string(),
+                ExpectSemicolonAfterLoopCondition => "Expect ';' after loop condition.".to_string(),
+                ExpectRightParenAfterForClauses => "Expect ')' after for clauses.".to_string(),
             }
         )
     }
@@ -146,7 +152,9 @@ impl Parser {
 
     fn statement(&mut self) -> Result<Stmt> {
         use TokenType::*;
-        if self.match_token_type(&[If]) {
+        if self.match_token_type(&[For]) {
+            self.for_statement()
+        } else if self.match_token_type(&[If]) {
             self.if_statement()
         } else if self.match_token_type(&[Print]) {
             self.print_statement()
@@ -157,6 +165,69 @@ impl Parser {
         } else {
             self.expression_statement()
         }
+    }
+
+    /// Add support for for statement as syntax sugar at parser level.
+    fn for_statement(&mut self) -> Result<Stmt> {
+        use TokenType::*;
+        self.consume(LeftParen, ParseErrorType::ExpectLeftParenAfterFor)?;
+
+        let initializer = if self.match_token_type(&[Semicolon]) {
+            None
+        } else if self.match_token_type(&[Var]) {
+            Some(self.var_declaration()?) // This consumes semicolon
+        } else {
+            Some(self.expression_statement()?) // This too
+        };
+
+        // Don't miss the NOT
+        // Also check does NOT advance the iterator
+        // No condition == while true == infinite loop
+        let condition = if !self.check(&Semicolon) {
+            self.expression()?
+        } else {
+            Expr::Literal {
+                value: Value::Boolean(true),
+            }
+        };
+        // NOTE: Rather than this, shouldn't I be able to match expression statement?
+        self.consume(Semicolon, ParseErrorType::ExpectSemicolonAfterLoopCondition)?;
+
+        // Don't miss the NOT
+        // Also check does NOT advance the iterator
+        let increment = if !self.check(&RightParen) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+        self.consume(RightParen, ParseErrorType::ExpectRightParenAfterForClauses)?;
+        let mut body = self.statement()?;
+
+        if let Some(increment) = increment {
+            // Append increment to the body statement.
+            body = Stmt::Block {
+                statements: vec![
+                    body,
+                    Stmt::Expression {
+                        expression: increment,
+                    },
+                ],
+            }
+        }
+
+        // Desugar as a while loop.
+        body = Stmt::While {
+            condition,
+            body: Box::new(body),
+        };
+
+        if let Some(initializer) = initializer {
+            body = Stmt::Block {
+                statements: vec![initializer, body],
+            }
+        }
+
+        Ok(body)
     }
 
     fn block(&mut self) -> Result<Stmt> {

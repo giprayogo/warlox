@@ -20,6 +20,7 @@ varDecl     ::= "var" IDENTIFIER ( "=" expression )? ";"
 statement   ::= exprStmt | ifStmt | printStmt | whileStmt | block
 ifStmt      ::= "if" "(" expression ")" statement ( "else" statement )?
 whileStmt   ::= "while" "(" expression ")" statement
+forStmt     ::= "for" "(" varDecl | exprStmt ";" expression? ";" expression? ")" statement
 block       ::= "{" declaration* "}"
 exprStmt    ::= expression
 printStmt   ::= "print" expression

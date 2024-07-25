@@ -340,7 +340,7 @@ impl StmtVisitor for AstPrinter {
                 for stmt in statements {
                     strings.push(self.visit_stmt(stmt)?);
                 }
-                Ok(strings.join("\n"))
+                Ok(format!("(block {})", strings.join(" ")))
             }
             Stmt::If {
                 condition,
